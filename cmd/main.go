@@ -2,19 +2,23 @@ package main
 
 import (
 	"net/http"
+
+	"github.com/bukharney/bank-core/internal/api/middleware"
+	"github.com/bukharney/bank-core/internal/api/routes"
+	"github.com/bukharney/bank-core/internal/config"
+	logger "github.com/bukharney/bank-core/internal/logs"
 )
 
 func main() {
+	logger.InitLogger()
+	defer logger.CloseLogger()
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("OK"))
-	})
+	config := config.NewConfig()
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("Not Found"))
-	})
+	routes.MapHandler(config, mux)
 
-	http.ListenAndServe(":8080", mux)
+	serv := middleware.ApplyMiddleware(mux)
+
+	http.ListenAndServe(":8080", serv)
 }
