@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-// JSON sends a JSON response
+// JSON is a helper function to return a JSON response
 func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
@@ -48,4 +48,24 @@ func NoContent(w http.ResponseWriter) {
 // BadRequest sends a bad request response
 func BadRequest(w http.ResponseWriter, err error) {
 	Error(w, http.StatusBadRequest, err)
+}
+
+// Unauthorized sends an unauthorized response
+func Unauthorized(w http.ResponseWriter, err error) {
+	Error(w, http.StatusUnauthorized, err)
+}
+
+// Forbidden sends a forbidden response
+func Forbidden(w http.ResponseWriter, err error) {
+	Error(w, http.StatusForbidden, err)
+}
+
+// NotFound sends a not found response
+func NotFound(w http.ResponseWriter, err error) {
+	Error(w, http.StatusNotFound, err)
+}
+
+// Conflict sends a conflict response
+func Conflict(w http.ResponseWriter, err error) {
+	Error(w, http.StatusConflict, err)
 }

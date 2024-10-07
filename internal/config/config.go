@@ -23,8 +23,8 @@ func NewConfig() *Config {
 			URL: "postgres://postgres:postgres@localhost:5432/bank?sslmode=disable",
 		},
 		JWTSecret: map[bool]string{
-			true:  "secret",
-			false: "secret",
+			true:  "refresh",
+			false: "access",
 		},
 		Redis: Redis{
 			URL:      "localhost:6379",

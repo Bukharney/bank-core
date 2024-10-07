@@ -8,6 +8,7 @@ import (
 	"github.com/bukharney/bank-core/internal/api/models"
 	"github.com/bukharney/bank-core/internal/api/usecases"
 	"github.com/bukharney/bank-core/internal/config"
+	"github.com/bukharney/bank-core/internal/responses"
 	"github.com/bukharney/bank-core/internal/utils"
 	"github.com/go-playground/validator/v10"
 )
@@ -33,26 +34,23 @@ func (c *AuthController) RegisterHandler(w http.ResponseWriter, r *http.Request)
 	user := models.User{}
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Invalid request body"))
+		responses.BadRequest(w, err)
 		return
 	}
 
 	err = c.validate.Struct(user)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+		responses.BadRequest(w, err)
 		return
 	}
 
 	code, err := c.usecase.Register(&user)
 	if err != nil {
-		w.WriteHeader(code)
-		w.Write([]byte(err.Error()))
+		responses.Error(w, code, err)
 		return
 	}
 
-	w.WriteHeader(code)
+	responses.Created(w, nil)
 }
 
 // LoginHandler handles the login route
@@ -60,50 +58,56 @@ func (c *AuthController) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	credentials := models.UserCredentials{}
 	err := json.NewDecoder(r.Body).Decode(&credentials)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Invalid request body"))
+		responses.BadRequest(w, err)
 		return
 	}
 
 	token, err := c.usecase.Login(&credentials)
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(err.Error()))
+		responses.Error(w, http.StatusUnauthorized, err)
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    token.Token,
-		HttpOnly: true,
-		Secure:   true,
-		Expires:  time.Now().Add(24 * time.Hour),
-		SameSite: http.SameSiteStrictMode,
-	})
-
-	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
-		Value:    token.RefreshToken,
-		Secure:   true,
-		Expires:  time.Now().Add(24 * time.Hour),
-		SameSite: http.SameSiteStrictMode,
-	})
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(token)
+	utils.SetToken(w, token, time.Now().Add(24*time.Hour))
+	responses.Success(w, token)
 }
 
 // RefreshTokenHandler handles the refresh token route
 func (c *AuthController) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
+	refreshToken := utils.ExtractToken(r, "refresh_token")
+	if refreshToken == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	token, err := c.usecase.RefreshToken(refreshToken)
+	if err != nil {
+		responses.Error(w, http.StatusUnauthorized, err)
+		return
+	}
+
+	utils.SetToken(w, token, time.Now().Add(24*time.Hour))
+	responses.Success(w, token)
 
 }
 
 // LogoutHandler handles the logout route
 func (c *AuthController) LogoutHandler(w http.ResponseWriter, r *http.Request) {
-	// Get the refresh token from the request body
-	// Check if the refresh token is valid
-	// If the refresh token is valid, delete the refresh token from the database
-	// If the refresh token is invalid, return a 401 Unauthorized response
+	refreshToken := utils.ExtractToken(r, "refresh_token")
+	if refreshToken == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	err := c.usecase.Logout(refreshToken)
+	if err != nil {
+		responses.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.SetToken(w, &models.LoginResponse{}, time.Now().Add(-24*time.Hour))
+
+	responses.NoContent(w)
 }
 
 // MeHandler handles the me route
@@ -121,7 +125,7 @@ func (c *AuthController) MeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(models.LoginResponse{
-		Token:        accessToken,
+		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	})
 }

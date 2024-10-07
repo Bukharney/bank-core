@@ -2,7 +2,7 @@ package models
 
 type AuthUsecase interface {
 	Register(user *User) error
-	Login(user *UserCredentials) (LoginResponse, error)
+	Login(user *UserCredentials) (*LoginResponse, error)
 }
 
 type AuthRepository interface {
@@ -17,6 +17,6 @@ type UserCredentials struct {
 }
 
 type LoginResponse struct {
-	Token        string `json:"token"`
+	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }

@@ -48,35 +48,68 @@ func (u *AuthUsecase) Register(user *models.User) (int, error) {
 	return http.StatusCreated, nil
 }
 
-func (u *AuthUsecase) Login(user *models.UserCredentials) (models.LoginResponse, error) {
+func (u *AuthUsecase) Login(user *models.UserCredentials) (*models.LoginResponse, error) {
 	dbUser, err := u.Repo.GetUserByEmail(user.Email)
 	if err != nil {
-		return models.LoginResponse{}, err
+		return nil, err
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(user.Password))
 	if err != nil {
-		return models.LoginResponse{}, err
+		return nil, fmt.Errorf("invalid password")
 	}
 
 	refreshToken, err := utils.GenerateToken(u.Cfg, dbUser.ID, true)
 	if err != nil {
-		return models.LoginResponse{}, err
+		return nil, err
 	}
 
 	strId := dbUser.ID.String()
 	err = u.Repo.UpdateRefreshToken(strId, refreshToken)
 	if err != nil {
-		return models.LoginResponse{}, err
+		return nil, err
 	}
 
 	accessToken, err := utils.GenerateToken(u.Cfg, dbUser.ID, false)
 	if err != nil {
-		return models.LoginResponse{}, err
+		return nil, err
 	}
 
-	return models.LoginResponse{
-		Token:        accessToken,
+	return &models.LoginResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+}
+
+// Logout logs out a user
+func (u *AuthUsecase) Logout(refreshToken string) error {
+	userId, err := utils.ParseToken(u.Cfg, refreshToken, true)
+	if err != nil {
+		return fmt.Errorf("invalid refresh token")
+	}
+
+	return u.Repo.UpdateRefreshToken(userId, "")
+}
+
+// RefreshToken refreshes the access token
+func (u *AuthUsecase) RefreshToken(refreshToken string) (*models.LoginResponse, error) {
+	userId, err := utils.ParseToken(u.Cfg, refreshToken, true)
+	if err != nil {
+		return nil, fmt.Errorf("invalid refresh token")
+	}
+
+	accessToken, err := utils.GenerateToken(u.Cfg, uuid.MustParse(userId), false)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken, err = utils.GenerateToken(u.Cfg, uuid.MustParse(userId), true)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.LoginResponse{
+		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
 }
