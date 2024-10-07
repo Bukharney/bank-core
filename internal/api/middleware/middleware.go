@@ -7,6 +7,23 @@ import (
 	logger "github.com/bukharney/bank-core/internal/logs"
 )
 
+// statusResponseWriter wraps http.ResponseWriter to capture the status code
+type statusResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+// WriteHeader captures the status code and calls the original WriteHeader
+func (w *statusResponseWriter) WriteHeader(code int) {
+	w.statusCode = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
+// Write calls the original Write and returns the status code
+func (w *statusResponseWriter) Write(b []byte) (int, error) {
+	return w.ResponseWriter.Write(b)
+}
+
 // AuthMiddleware checks if the user is authenticated
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -21,8 +38,12 @@ func AuthMiddleware(next http.Handler) http.Handler {
 // LoggerMiddleware logs the request and response
 func LoggerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger.Logger.Infof("%s %s", r.Method, r.URL.Path)
-		next.ServeHTTP(w, r)
+		// Wrap the ResponseWriter to capture the status code
+		srw := &statusResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+
+		next.ServeHTTP(srw, r)
+
+		logger.Logger.Infof("[%s] %s %s %d", r.Method, r.URL.Path, r.RemoteAddr, srw.statusCode)
 	})
 }
 
@@ -31,7 +52,6 @@ func PanicMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Logger.Errorf("Panic: %v", r)
 				debug.PrintStack()
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}

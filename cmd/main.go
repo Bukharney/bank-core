@@ -26,9 +26,9 @@ func main() {
 		panic(err)
 	}
 
+	serv := middleware.ApplyMiddleware(mux)
 	routes.MapHandler(config, mux, pg, rdb)
 
-	serv := middleware.ApplyMiddleware(mux)
-
+	logger.Logger.Info("Server is running on port 8080")
 	http.ListenAndServe(":8080", serv)
 }
