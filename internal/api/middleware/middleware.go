@@ -87,6 +87,7 @@ var DefaultMiddleware = ChainMiddleware(
 	LoggerMiddleware,
 	PanicMiddleware,
 	CORSMiddleware,
+	AuthMiddleware,
 )
 
 // ApplyMiddleware applies the default middleware chain to a handler

@@ -7,18 +7,21 @@ import (
 	"github.com/bukharney/bank-core/internal/api/repositories"
 	"github.com/bukharney/bank-core/internal/api/usecases"
 	"github.com/bukharney/bank-core/internal/config"
-	"github.com/jackc/pgx/v5"
+	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 )
 
 // MapHandler maps the routes to the handlers
 
-func MapHandler(config *config.Config, handler *http.ServeMux, pg *pgx.Conn, rdb *redis.Client) {
+func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb *redis.Client) {
 	AuthRepository := repositories.NewAuthRepository(pg, rdb, config)
 	authUseCase := usecases.NewAuthUsecase(config, AuthRepository)
-	authHandler := controllers.NewAuthController(authUseCase)
+	authHandler := controllers.NewAuthController(config, authUseCase)
 
-	handler.HandleFunc("POST /register", authHandler.RegisterHandler)
-	handler.HandleFunc("POST /login", authHandler.LoginHandler)
+	authRouter := http.NewServeMux()
+	authRouter.HandleFunc("POST /register", authHandler.RegisterHandler)
+	authRouter.HandleFunc("POST /login", authHandler.LoginHandler)
+	authRouter.HandleFunc("GET /me", authHandler.MeHandler)
 
+	handler.Handle("/auth/", http.StripPrefix("/auth", authRouter))
 }

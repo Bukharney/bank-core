@@ -6,18 +6,19 @@ import (
 	"github.com/bukharney/bank-core/internal/api/models"
 	"github.com/bukharney/bank-core/internal/config"
 	"github.com/jackc/pgx/v5"
+	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 )
 
 // AuthRepository is the repository for the auth routes
 type AuthRepository struct {
 	Cfg *config.Config
-	Db  *pgx.Conn
+	Db  *sqlx.DB
 	Rdb *redis.Client
 }
 
 // NewAuthRepository creates a new AuthRepository
-func NewAuthRepository(db *pgx.Conn, rdb *redis.Client, cfg *config.Config) *AuthRepository {
+func NewAuthRepository(db *sqlx.DB, rdb *redis.Client, cfg *config.Config) *AuthRepository {
 	return &AuthRepository{
 		Db:  db,
 		Rdb: rdb,
@@ -27,7 +28,10 @@ func NewAuthRepository(db *pgx.Conn, rdb *redis.Client, cfg *config.Config) *Aut
 
 // Register registers a new user
 func (r *AuthRepository) Register(user *models.User) error {
-	_, err := r.Db.Exec(context.Background(), "INSERT INTO customers (id, email, password, username, first_name, last_name) VALUES ($1, $2, $3, $4, $5, $6)", user.ID, user.Email, user.Password, user.Username, user.FirstName, user.LastName)
+	_, err := r.Db.NamedExec(`
+	INSERT INTO customers (id, email, password, created_at, first_name, last_name, username) 
+	VALUES (:id, :email, :password, :created_at, :first_name, :last_name, :username)
+	`, user)
 	if err != nil {
 		return err
 	}
@@ -37,18 +41,16 @@ func (r *AuthRepository) Register(user *models.User) error {
 
 // GetUserByEmail gets a user by email
 func (r *AuthRepository) GetUserByEmail(email string) (*models.User, error) {
-	var user models.User
-	rows, err := r.Db.Query(context.Background(), "SELECT * FROM customers WHERE email = $1", email)
+	user := &models.User{}
+	err := r.Db.Get(user, "SELECT * FROM customers WHERE email = $1", email)
 	if err != nil {
-		return &user, err
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
 	}
 
-	p, err := pgx.CollectOneRow(rows, pgx.RowToAddrOfStructByName[models.User])
-	if err != nil {
-		return &user, err
-	}
-
-	return p, nil
+	return user, nil
 }
 
 // UpdateRefreshToken updates the refresh token

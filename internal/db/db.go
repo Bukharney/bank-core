@@ -8,55 +8,41 @@ import (
 
 	"github.com/bukharney/bank-core/internal/config"
 	logger "github.com/bukharney/bank-core/internal/logs"
-	"github.com/jackc/pgx/v5"
+	_ "github.com/jackc/pgx/stdlib"
+	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 )
 
 // Connect connects to the database
-func Connect(cfg *config.Config) (*pgx.Conn, error) {
-	conn, err := pgx.Connect(context.Background(), cfg.DB.URL)
+func Connect(cfg *config.Config) (*sqlx.DB, error) {
+	db, err := sqlx.Connect("pgx", cfg.DB.URL)
 	if err != nil {
 		return nil, err
 	}
 
-	err = conn.Ping(context.Background())
-	if err != nil {
-		return nil, err
-	}
-
-	logger.Logger.Infoln("Connected to the database")
-
-	// err = Migrate(conn)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	return conn, nil
+	logger.Logger.Infoln("Connected to the postgres")
+	return db, nil
 }
 
 // Migrate migrates the database
-func Migrate(db *pgx.Conn) error {
+func Migrate(db *sqlx.DB) error {
 	files, err := os.ReadDir("./internal/db/migrations")
 	if err != nil {
 		return err
 	}
 
 	for _, file := range files {
-		if !strings.HasSuffix(file.Name(), ".sql") {
-			continue
-		}
+		if strings.HasSuffix(file.Name(), ".sql") {
+			migration, err := os.ReadFile(fmt.Sprintf("./internal/db/migrations/%s", file.Name()))
+			if err != nil {
+				return err
+			}
 
-		data, err := os.ReadFile(fmt.Sprintf("./internal/db/migrations/%s", file.Name()))
-		if err != nil {
-			return err
+			_, err = db.Exec(string(migration))
+			if err != nil {
+				return err
+			}
 		}
-
-		_, err = db.Exec(context.Background(), string(data))
-		if err != nil {
-			return err
-		}
-
-		logger.Logger.Infoln("Migrated: ", file.Name())
 	}
 
 	return nil

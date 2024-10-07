@@ -16,6 +16,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	config := config.NewConfig()
+
 	pg, err := db.Connect(config)
 	if err != nil {
 		panic(err)
