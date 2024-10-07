@@ -6,6 +6,7 @@ import (
 	"github.com/bukharney/bank-core/internal/api/middleware"
 	"github.com/bukharney/bank-core/internal/api/routes"
 	"github.com/bukharney/bank-core/internal/config"
+	"github.com/bukharney/bank-core/internal/db"
 	logger "github.com/bukharney/bank-core/internal/logs"
 )
 
@@ -15,8 +16,17 @@ func main() {
 	mux := http.NewServeMux()
 
 	config := config.NewConfig()
+	pg, err := db.Connect(config)
+	if err != nil {
+		panic(err)
+	}
 
-	routes.MapHandler(config, mux)
+	rdb, err := db.RedisConnect(config)
+	if err != nil {
+		panic(err)
+	}
+
+	routes.MapHandler(config, mux, pg, rdb)
 
 	serv := middleware.ApplyMiddleware(mux)
 

@@ -1,24 +1,35 @@
 package config
 
 type DBConfig struct {
-	DSN          string
-	MaxOpenConns int
-	MaxIdleConns int
-	MaxIdleTime  string
+	URL string
+}
+
+type Redis struct {
+	URL      string
+	Password string
+	DB       int
 }
 
 type Config struct {
-	DB DBConfig
+	DB        DBConfig
+	JWTSecret map[bool]string
+	Redis     Redis
 }
 
 // NewConfig creates a new Config
 func NewConfig() *Config {
 	return &Config{
 		DB: DBConfig{
-			DSN:          "postgres://postgres:password@localhost:5432/bank?sslmode=disable",
-			MaxOpenConns: 10,
-			MaxIdleConns: 10,
-			MaxIdleTime:  "5m",
+			URL: "postgres://postgres:postgres@localhost:5432/bank?sslmode=disable",
+		},
+		JWTSecret: map[bool]string{
+			true:  "secret",
+			false: "secret",
+		},
+		Redis: Redis{
+			URL:      "localhost:6379",
+			Password: "root",
+			DB:       0,
 		},
 	}
 }

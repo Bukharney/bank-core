@@ -2,15 +2,26 @@ package middleware
 
 import (
 	"net/http"
+	"runtime/debug"
 
 	logger "github.com/bukharney/bank-core/internal/logs"
 )
 
+// AuthMiddleware checks if the user is authenticated
+func AuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check if the user is authenticated
+		// If not, return a 401 Unauthorized response
+		// If the user is authenticated, call next.ServeHTTP(w, r)
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 // LoggerMiddleware logs the request and response
 func LoggerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger.Logger.Infof("Request: %s %s", r.Method, r.URL.Path)
-
+		logger.Logger.Infof("%s %s", r.Method, r.URL.Path)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -21,7 +32,8 @@ func PanicMiddleware(next http.Handler) http.Handler {
 		defer func() {
 			if r := recover(); r != nil {
 				logger.Logger.Errorf("Panic: %v", r)
-				w.WriteHeader(http.StatusInternalServerError)
+				debug.PrintStack()
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}
 		}()
 
