@@ -6,11 +6,13 @@ import (
 
 	"github.com/bukharney/bank-core/internal/config"
 	logger "github.com/bukharney/bank-core/internal/logs"
+	"github.com/bukharney/bank-core/internal/responses"
 	"github.com/bukharney/bank-core/internal/utils"
 )
 
 var unprotectedRoutes = map[string]bool{
 	"/auth/register": true,
+	"/auth/login":    true,
 }
 
 // statusResponseWriter wraps http.ResponseWriter to capture the status code
@@ -41,11 +43,16 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		token, err := utils.ExtractToken(r, "access_token")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			if err.Error() == "http: named cookie not present" {
+				responses.Unauthorized(w, err)
+				return
+			}
+
+			responses.BadRequest(w, err)
 			return
 		}
 		if !utils.ValidateToken(cfg, token, false) {
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			responses.Unauthorized(w, err)
 			return
 		}
 
@@ -60,7 +67,6 @@ func LoggerMiddleware(next http.Handler) http.Handler {
 		srw := &statusResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 
 		next.ServeHTTP(srw, r)
-
 		logger.Logger.Infof("[%s] %s %s %d", r.Method, r.URL.Path, r.RemoteAddr, srw.statusCode)
 	})
 }
@@ -71,7 +77,8 @@ func PanicMiddleware(next http.Handler) http.Handler {
 		defer func() {
 			if r := recover(); r != nil {
 				debug.PrintStack()
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				logger.Logger.Errorf("Panic: %v", r)
+				responses.Error(w, http.StatusInternalServerError, nil)
 			}
 		}()
 
@@ -104,8 +111,8 @@ func ChainMiddleware(middlewares ...func(http.Handler) http.Handler) func(http.H
 var DefaultMiddleware = ChainMiddleware(
 	LoggerMiddleware,
 	PanicMiddleware,
-	CORSMiddleware,
 	AuthMiddleware,
+	CORSMiddleware,
 )
 
 // ApplyMiddleware applies the default middleware chain to a handler
