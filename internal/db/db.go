@@ -8,7 +8,7 @@ import (
 
 	"github.com/bukharney/bank-core/internal/config"
 	logger "github.com/bukharney/bank-core/internal/logs"
-	_ "github.com/jackc/pgx/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 )

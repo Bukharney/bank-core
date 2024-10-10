@@ -5,7 +5,6 @@ import (
 
 	"github.com/bukharney/bank-core/internal/api/models"
 	"github.com/bukharney/bank-core/internal/config"
-	"github.com/jackc/pgx/v5"
 	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 )
@@ -44,9 +43,6 @@ func (r *AuthRepository) GetUserByEmail(email string) (*models.User, error) {
 	user := &models.User{}
 	err := r.Db.Get(user, "SELECT * FROM customers WHERE email = $1", email)
 	if err != nil {
-		if err == pgx.ErrNoRows {
-			return nil, nil
-		}
 		return nil, err
 	}
 
