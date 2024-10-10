@@ -74,9 +74,9 @@ func (c *AuthController) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 // RefreshTokenHandler handles the refresh token route
 func (c *AuthController) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
-	refreshToken := utils.ExtractToken(r, "refresh_token")
-	if refreshToken == "" {
-		w.WriteHeader(http.StatusUnauthorized)
+	refreshToken, err := utils.ExtractToken(r, "refresh_token")
+	if err != nil {
+		responses.Error(w, http.StatusUnauthorized, err)
 		return
 	}
 
@@ -93,13 +93,13 @@ func (c *AuthController) RefreshTokenHandler(w http.ResponseWriter, r *http.Requ
 
 // LogoutHandler handles the logout route
 func (c *AuthController) LogoutHandler(w http.ResponseWriter, r *http.Request) {
-	refreshToken := utils.ExtractToken(r, "refresh_token")
-	if refreshToken == "" {
-		w.WriteHeader(http.StatusUnauthorized)
+	refreshToken, err := utils.ExtractToken(r, "refresh_token")
+	if err != nil {
+		responses.Error(w, http.StatusUnauthorized, err)
 		return
 	}
 
-	err := c.usecase.Logout(refreshToken)
+	err = c.usecase.Logout(refreshToken)
 	if err != nil {
 		responses.Error(w, http.StatusInternalServerError, err)
 		return
@@ -112,20 +112,20 @@ func (c *AuthController) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 // MeHandler handles the me route
 func (c *AuthController) MeHandler(w http.ResponseWriter, r *http.Request) {
-	refreshToken := utils.ExtractToken(r, "refresh_token")
-	if refreshToken == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+	// refreshToken := utils.ExtractToken(r, "refresh_token")
+	// if refreshToken == "" {
+	// 	w.WriteHeader(http.StatusUnauthorized)
+	// 	return
+	// }
 
-	accessToken := utils.ExtractToken(r, "access_token")
-	if accessToken == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+	// accessToken := utils.ExtractToken(r, "access_token")
+	// if accessToken == "" {
+	// 	w.WriteHeader(http.StatusUnauthorized)
+	// 	return
+	// }
 
-	json.NewEncoder(w).Encode(models.LoginResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-	})
+	// json.NewEncoder(w).Encode(models.LoginResponse{
+	// 	AccessToken:  accessToken,
+	// 	RefreshToken: refreshToken,
+	// })
 }

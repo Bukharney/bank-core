@@ -4,8 +4,14 @@ import (
 	"net/http"
 	"runtime/debug"
 
+	"github.com/bukharney/bank-core/internal/config"
 	logger "github.com/bukharney/bank-core/internal/logs"
+	"github.com/bukharney/bank-core/internal/utils"
 )
+
+var unprotectedRoutes = map[string]bool{
+	"/auth/register": true,
+}
 
 // statusResponseWriter wraps http.ResponseWriter to capture the status code
 type statusResponseWriter struct {
@@ -27,9 +33,21 @@ func (w *statusResponseWriter) Write(b []byte) (int, error) {
 // AuthMiddleware checks if the user is authenticated
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check if the user is authenticated
-		// If not, return a 401 Unauthorized response
-		// If the user is authenticated, call next.ServeHTTP(w, r)
+		cfg := config.NewConfig()
+		if _, ok := unprotectedRoutes[r.URL.Path]; ok {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		token, err := utils.ExtractToken(r, "access_token")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		if !utils.ValidateToken(cfg, token, false) {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
 
 		next.ServeHTTP(w, r)
 	})

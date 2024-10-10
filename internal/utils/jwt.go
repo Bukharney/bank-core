@@ -90,6 +90,7 @@ func GetExpirationFromToken(cfg *config.Config, tokenString string, t bool) (int
 	return int64(claims["exp"].(float64)), nil
 }
 
+// SetToken sets the JWT token in a cookie
 func SetToken(w http.ResponseWriter, token *models.LoginResponse, time time.Time) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "access_token",
