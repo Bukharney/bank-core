@@ -71,13 +71,13 @@ func (c *AuthController) RefreshTokenHandler(w http.ResponseWriter, r *http.Requ
 func (c *AuthController) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	refreshToken, err := utils.ExtractToken(r, "refresh_token")
 	if err != nil {
-		responses.Error(w, http.StatusUnauthorized, err)
+		responses.InternalServerError(w, err)
 		return
 	}
 
 	err = c.Usecase.Logout(refreshToken)
 	if err != nil {
-		responses.Error(w, http.StatusInternalServerError, err)
+		responses.InternalServerError(w, err)
 		return
 	}
 
@@ -88,20 +88,17 @@ func (c *AuthController) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 // MeHandler handles the me route
 func (c *AuthController) MeHandler(w http.ResponseWriter, r *http.Request) {
-	// refreshToken := utils.ExtractToken(r, "refresh_token")
-	// if refreshToken == "" {
-	// 	w.WriteHeader(http.StatusUnauthorized)
-	// 	return
-	// }
+	token, err := utils.ExtractToken(r, "access_token")
+	if err != nil {
+		responses.Unauthorized(w, err)
+		return
+	}
 
-	// accessToken := utils.ExtractToken(r, "access_token")
-	// if accessToken == "" {
-	// 	w.WriteHeader(http.StatusUnauthorized)
-	// 	return
-	// }
+	user, err := c.Usecase.Me(token)
+	if err != nil {
+		responses.Error(w, http.StatusUnauthorized, err)
+		return
+	}
 
-	// json.NewEncoder(w).Encode(models.LoginResponse{
-	// 	AccessToken:  accessToken,
-	// 	RefreshToken: refreshToken,
-	// })
+	responses.Success(w, user)
 }

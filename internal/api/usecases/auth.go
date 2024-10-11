@@ -92,3 +92,17 @@ func (u *AuthUsecase) RefreshToken(refreshToken string) (*models.LoginResponse, 
 		RefreshToken: refreshToken,
 	}, nil
 }
+
+func (u *AuthUsecase) Me(token string) (*models.User, error) {
+	userId, err := utils.GetUserIdFromToken(u.Cfg, token, false)
+	if err != nil {
+		return nil, err
+	}
+
+	user, err := u.UserRepo.GetUserById(userId)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}

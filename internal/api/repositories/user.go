@@ -46,3 +46,13 @@ func (r *UserRepository) GetUserByEmail(email string) (*models.User, error) {
 
 	return user, nil
 }
+
+func (r *UserRepository) GetUserById(id string) (*models.User, error) {
+	user := &models.User{}
+	err := r.Db.Get(user, "SELECT * FROM customers WHERE id = $1", id)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}

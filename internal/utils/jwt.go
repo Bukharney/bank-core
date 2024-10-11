@@ -56,8 +56,8 @@ func ValidateToken(cfg *config.Config, tokenString string, t bool) bool {
 	return ok && token.Valid
 }
 
-// GetUsernameFromToken gets the username from a JWT token
-func GetUsernameFromToken(cfg *config.Config, tokenString string, t bool) (string, error) {
+// GetUserIdFromToken gets the userId from a JWT token
+func GetUserIdFromToken(cfg *config.Config, tokenString string, t bool) (string, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return []byte(cfg.JWTSecret[t]), nil
 	})

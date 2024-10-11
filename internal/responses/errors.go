@@ -45,6 +45,10 @@ func NoContent(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func InternalServerError(w http.ResponseWriter, err error) {
+	Error(w, http.StatusInternalServerError, err)
+}
+
 // BadRequest sends a bad request response
 func BadRequest(w http.ResponseWriter, err error) {
 	Error(w, http.StatusBadRequest, err)
