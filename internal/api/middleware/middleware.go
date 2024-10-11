@@ -11,7 +11,7 @@ import (
 )
 
 var unprotectedRoutes = map[string]bool{
-	"/auth/register": true,
+	"/user/register": true,
 	"/auth/login":    true,
 }
 

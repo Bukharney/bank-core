@@ -15,42 +15,18 @@ import (
 
 // AuthController is the controller for the auth routes
 type AuthController struct {
-	cfg      *config.Config
-	usecase  *usecases.AuthUsecase
-	validate *validator.Validate
+	Cfg      *config.Config
+	Usecase  *usecases.AuthUsecase
+	Validate *validator.Validate
 }
 
 // NewAuthController creates a new AuthController
 func NewAuthController(cfg *config.Config, usecase *usecases.AuthUsecase) *AuthController {
 	return &AuthController{
-		cfg:      cfg,
-		usecase:  usecase,
-		validate: validator.New(),
+		Cfg:      cfg,
+		Usecase:  usecase,
+		Validate: validator.New(),
 	}
-}
-
-// RegisterHandler handles the registration route
-func (c *AuthController) RegisterHandler(w http.ResponseWriter, r *http.Request) {
-	user := models.User{}
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		responses.BadRequest(w, err)
-		return
-	}
-
-	err = c.validate.Struct(user)
-	if err != nil {
-		responses.BadRequest(w, err)
-		return
-	}
-
-	code, err := c.usecase.Register(&user)
-	if err != nil {
-		responses.Error(w, code, err)
-		return
-	}
-
-	responses.Created(w, nil)
 }
 
 // LoginHandler handles the login route
@@ -62,7 +38,7 @@ func (c *AuthController) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := c.usecase.Login(&credentials)
+	token, err := c.Usecase.Login(&credentials)
 	if err != nil {
 		responses.Error(w, http.StatusUnauthorized, err)
 		return
@@ -80,7 +56,7 @@ func (c *AuthController) RefreshTokenHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	token, err := c.usecase.RefreshToken(refreshToken)
+	token, err := c.Usecase.RefreshToken(refreshToken)
 	if err != nil {
 		responses.Error(w, http.StatusUnauthorized, err)
 		return
@@ -99,7 +75,7 @@ func (c *AuthController) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = c.usecase.Logout(refreshToken)
+	err = c.Usecase.Logout(refreshToken)
 	if err != nil {
 		responses.Error(w, http.StatusInternalServerError, err)
 		return

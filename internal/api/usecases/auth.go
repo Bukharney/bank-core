@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/bukharney/bank-core/internal/api/models"
 	"github.com/bukharney/bank-core/internal/config"
@@ -13,43 +12,23 @@ import (
 
 // AuthUsecase is the usecase for the auth routes
 type AuthUsecase struct {
-	Cfg  *config.Config
-	Repo models.AuthRepository
+	Cfg      *config.Config
+	Repo     models.AuthRepository
+	UserRepo models.UserRepository
 }
 
 // NewAuthUsecase creates a new AuthUsecase
-func NewAuthUsecase(cfg *config.Config, repo models.AuthRepository) *AuthUsecase {
+func NewAuthUsecase(cfg *config.Config, repo models.AuthRepository, userRepo models.UserRepository) *AuthUsecase {
 	return &AuthUsecase{
-		Repo: repo,
-		Cfg:  cfg,
+		UserRepo: userRepo,
+		Repo:     repo,
+		Cfg:      cfg,
 	}
 }
 
-// Register registers a new user
-func (u *AuthUsecase) Register(user *models.User) (int, error) {
-	_, err := u.Repo.GetUserByEmail(user.Email)
-	if err == nil {
-		return http.StatusConflict, fmt.Errorf("user with email %s already exists", user.Email)
-	}
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-
-	user.ID = uuid.New()
-	user.Password = string(hashedPassword)
-
-	err = u.Repo.Register(user)
-	if err != nil {
-		return http.StatusInternalServerError, err
-	}
-
-	return http.StatusCreated, nil
-}
-
+// Login logs in a user
 func (u *AuthUsecase) Login(user *models.UserCredentials) (*models.LoginResponse, error) {
-	dbUser, err := u.Repo.GetUserByEmail(user.Email)
+	dbUser, err := u.UserRepo.GetUserByEmail(user.Email)
 	if err != nil {
 		return nil, err
 	}

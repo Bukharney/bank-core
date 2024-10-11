@@ -14,16 +14,22 @@ import (
 // MapHandler maps the routes to the handlers
 
 func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb *redis.Client) {
+	UserRepository := repositories.NewUserRepository(pg, rdb, config)
+	UserUseCase := usecases.NewUserUsecase(config, UserRepository)
+	UserHandler := controllers.NewUserController(config, UserUseCase)
+
+	userRouter := http.NewServeMux()
+	userRouter.HandleFunc("POST /register", UserHandler.RegisterHandler)
+	handler.Handle("/user/", http.StripPrefix("/user", userRouter))
+
 	AuthRepository := repositories.NewAuthRepository(pg, rdb, config)
-	authUseCase := usecases.NewAuthUsecase(config, AuthRepository)
-	authHandler := controllers.NewAuthController(config, authUseCase)
+	AuthUseCase := usecases.NewAuthUsecase(config, AuthRepository, UserRepository)
+	AuthHandler := controllers.NewAuthController(config, AuthUseCase)
 
 	authRouter := http.NewServeMux()
-	authRouter.HandleFunc("POST /register", authHandler.RegisterHandler)
-	authRouter.HandleFunc("POST /login", authHandler.LoginHandler)
-	authRouter.HandleFunc("GET /logout", authHandler.LogoutHandler)
-	authRouter.HandleFunc("GET /me", authHandler.MeHandler)
-	authRouter.HandleFunc("GET /refresh", authHandler.RefreshTokenHandler)
-
+	authRouter.HandleFunc("POST /login", AuthHandler.LoginHandler)
+	authRouter.HandleFunc("GET /logout", AuthHandler.LogoutHandler)
+	authRouter.HandleFunc("GET /me", AuthHandler.MeHandler)
+	authRouter.HandleFunc("GET /refresh", AuthHandler.RefreshTokenHandler)
 	handler.Handle("/auth/", http.StripPrefix("/auth", authRouter))
 }

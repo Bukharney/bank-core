@@ -6,6 +6,15 @@ import (
 	"github.com/google/uuid"
 )
 
+type UserUsecase interface {
+	Register(user *User) error
+}
+
+type UserRepository interface {
+	GetUserByEmail(email string) (*User, error)
+	Register(user *User) error
+}
+
 type User struct {
 	ID        uuid.UUID `json:"id" db:"id"`
 	Username  string    `json:"username" db:"username" validate:"required"`

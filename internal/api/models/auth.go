@@ -1,13 +1,10 @@
 package models
 
 type AuthUsecase interface {
-	Register(user *User) error
 	Login(user *UserCredentials) (*LoginResponse, error)
 }
 
 type AuthRepository interface {
-	Register(user *User) error
-	GetUserByEmail(email string) (*User, error)
 	UpdateRefreshToken(userId string, refreshToken string) error
 }
 
