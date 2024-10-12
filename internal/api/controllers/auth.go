@@ -50,7 +50,6 @@ func (c *AuthController) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	utils.SetToken(w, token, time.Now().Add(24*time.Hour))
 	responses.Success(w, token)
-
 }
 
 // RefreshTokenHandler handles the refresh token route

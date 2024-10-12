@@ -13,8 +13,10 @@ import (
 
 // MapHandler maps the routes to the handlers
 func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb *redis.Client) {
+	AccountRepository := repositories.NewAccountRepository(pg, rdb, config)
+
 	UserRepository := repositories.NewUserRepository(pg, rdb, config)
-	UserUseCase := usecases.NewUserUsecase(config, UserRepository)
+	UserUseCase := usecases.NewUserUsecase(config, UserRepository, AccountRepository)
 	UserHandler := controllers.NewUserController(config, UserUseCase)
 
 	userRouter := http.NewServeMux()

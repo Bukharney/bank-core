@@ -20,6 +20,11 @@ func Connect(cfg *config.Config) (*sqlx.DB, error) {
 		return nil, err
 	}
 
+	// err = Migrate(db)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
 	logger.Logger.Infoln("Connected to the postgres")
 	return db, nil
 }

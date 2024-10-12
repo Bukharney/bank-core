@@ -12,12 +12,13 @@ import (
 
 // UserUsecase is the usecase for the user routes
 type UserUsecase struct {
-	Cfg  *config.Config
-	Repo models.UserRepository
+	Cfg         *config.Config
+	Repo        models.UserRepository
+	AccountRepo models.AccountRepository
 }
 
 // NewUserUsecase creates a new UserUsecase
-func NewUserUsecase(cfg *config.Config, repo models.UserRepository) *UserUsecase {
+func NewUserUsecase(cfg *config.Config, repo models.UserRepository, accountRepo models.AccountRepository) *UserUsecase {
 	return &UserUsecase{
 		Repo: repo,
 		Cfg:  cfg,
@@ -49,7 +50,12 @@ func (u *UserUsecase) Register(user *models.User) (int, error) {
 	user.ID = uuid.New()
 	user.Password = string(hashedPassword)
 
-	err = u.Repo.Register(user)
+	err = u.Repo.Register(user, &models.Account{
+		ID:          uuid.New(),
+		UserID:      user.ID,
+		Balance:     0,
+		AccountType: "savings",
+	})
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}

@@ -13,7 +13,7 @@ type UserUsecase interface {
 type UserRepository interface {
 	GetUserByEmail(email string) (*User, error)
 	GetUserById(id string) (*User, error)
-	Register(user *User) error
+	Register(user *User, account *Account) error
 }
 
 type User struct {

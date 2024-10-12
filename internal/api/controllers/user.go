@@ -47,5 +47,5 @@ func (c *UserController) RegisterHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	responses.Success(w, nil)
+	responses.JSON(w, http.StatusCreated, nil)
 }
