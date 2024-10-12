@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -31,14 +30,19 @@ func NewAuthController(cfg *config.Config, usecase *usecases.AuthUsecase) *AuthC
 
 // LoginHandler handles the login route
 func (c *AuthController) LoginHandler(w http.ResponseWriter, r *http.Request) {
-	credentials := models.UserCredentials{}
-	err := json.NewDecoder(r.Body).Decode(&credentials)
+	login := &models.UserCredentials{}
+	err := utils.DecodeJSON(r, login)
+	if err != nil {
+		responses.BadRequest(w, err)
+	}
+
+	err = c.Validate.Struct(login)
 	if err != nil {
 		responses.BadRequest(w, err)
 		return
 	}
 
-	token, err := c.Usecase.Login(&credentials)
+	token, err := c.Usecase.Login(login)
 	if err != nil {
 		responses.Error(w, http.StatusUnauthorized, err)
 		return
@@ -46,6 +50,7 @@ func (c *AuthController) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	utils.SetToken(w, token, time.Now().Add(24*time.Hour))
 	responses.Success(w, token)
+
 }
 
 // RefreshTokenHandler handles the refresh token route
@@ -64,41 +69,42 @@ func (c *AuthController) RefreshTokenHandler(w http.ResponseWriter, r *http.Requ
 
 	utils.SetToken(w, token, time.Now().Add(24*time.Hour))
 	responses.Success(w, token)
-
 }
 
 // LogoutHandler handles the logout route
 func (c *AuthController) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	refreshToken, err := utils.ExtractToken(r, "refresh_token")
 	if err != nil {
-		responses.InternalServerError(w, err)
+		responses.Error(w, http.StatusUnauthorized, err)
 		return
 	}
 
 	err = c.Usecase.Logout(refreshToken)
 	if err != nil {
-		responses.InternalServerError(w, err)
+		responses.Error(w, http.StatusUnauthorized, err)
 		return
 	}
 
-	utils.SetToken(w, &models.LoginResponse{}, time.Now().Add(-24*time.Hour))
+	token := &models.LoginResponse{}
 
+	utils.SetToken(w, token, time.Now())
 	responses.NoContent(w)
 }
 
 // MeHandler handles the me route
 func (c *AuthController) MeHandler(w http.ResponseWriter, r *http.Request) {
-	token, err := utils.ExtractToken(r, "access_token")
+	accessToken, err := utils.ExtractToken(r, "access_token")
 	if err != nil {
-		responses.Unauthorized(w, err)
+		responses.Error(w, http.StatusUnauthorized, err)
 		return
 	}
 
-	user, err := c.Usecase.Me(token)
+	user, err := c.Usecase.Me(accessToken)
 	if err != nil {
 		responses.Error(w, http.StatusUnauthorized, err)
 		return
 	}
 
 	responses.Success(w, user)
+
 }

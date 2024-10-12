@@ -73,3 +73,8 @@ func NotFound(w http.ResponseWriter, err error) {
 func Conflict(w http.ResponseWriter, err error) {
 	Error(w, http.StatusConflict, err)
 }
+
+// Timeout sends a timeout response
+func Timeout(w http.ResponseWriter, err error) {
+	Error(w, http.StatusRequestTimeout, err)
+}

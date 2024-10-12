@@ -1,13 +1,13 @@
 package controllers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/bukharney/bank-core/internal/api/models"
 	"github.com/bukharney/bank-core/internal/api/usecases"
 	"github.com/bukharney/bank-core/internal/config"
 	"github.com/bukharney/bank-core/internal/responses"
+	"github.com/bukharney/bank-core/internal/utils"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -29,11 +29,10 @@ func NewUserController(cfg *config.Config, usecase *usecases.UserUsecase) *UserC
 
 // RegisterHandler handles the registration route
 func (c *UserController) RegisterHandler(w http.ResponseWriter, r *http.Request) {
-	user := models.User{}
-	err := json.NewDecoder(r.Body).Decode(&user)
+	user := &models.User{}
+	err := utils.DecodeJSON(r, user)
 	if err != nil {
 		responses.BadRequest(w, err)
-		return
 	}
 
 	err = c.Validate.Struct(user)
@@ -42,11 +41,11 @@ func (c *UserController) RegisterHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	code, err := c.Usecase.Register(&user)
+	status, err := c.Usecase.Register(user)
 	if err != nil {
-		responses.Error(w, code, err)
+		responses.Error(w, status, err)
 		return
 	}
 
-	responses.Created(w, nil)
+	responses.Success(w, nil)
 }

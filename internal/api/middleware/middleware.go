@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"runtime/debug"
+	"time"
 
 	"github.com/bukharney/bank-core/internal/config"
 	logger "github.com/bukharney/bank-core/internal/logs"
@@ -30,6 +31,12 @@ func (w *statusResponseWriter) WriteHeader(code int) {
 // Write calls the original Write and returns the status code
 func (w *statusResponseWriter) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
+}
+
+// TimeoutMiddleware adds a timeout to the request
+func TimeoutMiddleware(next http.Handler) http.Handler {
+	timeout := 1
+	return http.TimeoutHandler(next, time.Duration(timeout)*time.Second, "Request timed out")
 }
 
 // AuthMiddleware checks if the user is authenticated
@@ -113,6 +120,7 @@ var DefaultMiddleware = ChainMiddleware(
 	PanicMiddleware,
 	AuthMiddleware,
 	CORSMiddleware,
+	TimeoutMiddleware,
 )
 
 // ApplyMiddleware applies the default middleware chain to a handler
