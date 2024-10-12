@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 
+	"github.com/bukharney/bank-core/internal/api/models"
 	"github.com/bukharney/bank-core/internal/config"
 	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
@@ -16,7 +17,7 @@ type AuthRepository struct {
 }
 
 // NewAuthRepository creates a new AuthRepository
-func NewAuthRepository(db *sqlx.DB, rdb *redis.Client, cfg *config.Config) *AuthRepository {
+func NewAuthRepository(db *sqlx.DB, rdb *redis.Client, cfg *config.Config) models.AuthRepository {
 	return &AuthRepository{
 		Db:  db,
 		Rdb: rdb,

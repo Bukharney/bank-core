@@ -11,7 +11,7 @@ CREATE TABLE users (
 
 -- Create a table for storing account information
 CREATE TABLE accounts (
-    id UUID PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     user_id UUID REFERENCES users(id),
     account_type VARCHAR(50) NOT NULL,
     balance DECIMAL(15, 2) NOT NULL CHECK (balance >= 0),
@@ -21,8 +21,11 @@ CREATE TABLE accounts (
 -- Create a table for storing transaction information
 CREATE TABLE transactions (
     id SERIAL PRIMARY KEY,
-    account_id UUID REFERENCES accounts(id),
+    account_id INTEGER REFERENCES accounts(id) NOT NULL,
+    receiver_account_id INTEGER REFERENCES accounts(id) NULL,
     amount DECIMAL(15, 2) NOT NULL,
     transaction_type VARCHAR(50) NOT NULL,
+    transaction_reference VARCHAR(50) NOT NULL,
+    transaction_status VARCHAR(50) NOT NULL,
     transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

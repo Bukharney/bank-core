@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/bukharney/bank-core/internal/api/models"
-	"github.com/bukharney/bank-core/internal/api/usecases"
 	"github.com/bukharney/bank-core/internal/config"
 	"github.com/bukharney/bank-core/internal/responses"
 	"github.com/bukharney/bank-core/internal/utils"
@@ -15,12 +14,12 @@ import (
 // AuthController is the controller for the auth routes
 type AuthController struct {
 	Cfg      *config.Config
-	Usecase  *usecases.AuthUsecase
+	Usecase  models.AuthUsecase
 	Validate *validator.Validate
 }
 
 // NewAuthController creates a new AuthController
-func NewAuthController(cfg *config.Config, usecase *usecases.AuthUsecase) *AuthController {
+func NewAuthController(cfg *config.Config, usecase models.AuthUsecase) *AuthController {
 	return &AuthController{
 		Cfg:      cfg,
 		Usecase:  usecase,

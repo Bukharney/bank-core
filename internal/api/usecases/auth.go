@@ -18,7 +18,7 @@ type AuthUsecase struct {
 }
 
 // NewAuthUsecase creates a new AuthUsecase
-func NewAuthUsecase(cfg *config.Config, repo models.AuthRepository, userRepo models.UserRepository) *AuthUsecase {
+func NewAuthUsecase(cfg *config.Config, repo models.AuthRepository, userRepo models.UserRepository) models.AuthUsecase {
 	return &AuthUsecase{
 		UserRepo: userRepo,
 		Repo:     repo,

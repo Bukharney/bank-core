@@ -18,7 +18,7 @@ type UserUsecase struct {
 }
 
 // NewUserUsecase creates a new UserUsecase
-func NewUserUsecase(cfg *config.Config, repo models.UserRepository, accountRepo models.AccountRepository) *UserUsecase {
+func NewUserUsecase(cfg *config.Config, repo models.UserRepository, accountRepo models.AccountRepository) models.UserUsecase {
 	return &UserUsecase{
 		Repo: repo,
 		Cfg:  cfg,
@@ -51,7 +51,6 @@ func (u *UserUsecase) Register(user *models.User) (int, error) {
 	user.Password = string(hashedPassword)
 
 	err = u.Repo.Register(user, &models.Account{
-		ID:          uuid.New(),
 		UserID:      user.ID,
 		Balance:     0,
 		AccountType: "savings",

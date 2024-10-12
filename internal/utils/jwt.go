@@ -73,6 +73,26 @@ func GetUserIdFromToken(cfg *config.Config, tokenString string, t bool) (string,
 	return claims["userId"].(string), nil
 }
 
+// ExtractToken extracts the token from the Cookie header
+func ExtractToken(r *http.Request, name string) (string, error) {
+	cookie, err := r.Cookie(name)
+	if err != nil {
+		return "", err
+	}
+
+	return cookie.Value, nil
+}
+
+// GetUserIdFromRequest gets the userId from the request
+func GetUserIdFromRequest(cfg *config.Config, r *http.Request, t bool) (string, error) {
+	token, err := ExtractToken(r, "access_token")
+	if err != nil {
+		return "", err
+	}
+
+	return GetUserIdFromToken(cfg, token, t)
+}
+
 // GetExpirationFromToken gets the expiration time from a JWT token
 func GetExpirationFromToken(cfg *config.Config, tokenString string, t bool) (int64, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -94,6 +114,7 @@ func GetExpirationFromToken(cfg *config.Config, tokenString string, t bool) (int
 func SetToken(w http.ResponseWriter, token *models.LoginResponse, time time.Time) {
 
 	http.SetCookie(w, &http.Cookie{
+		Path:     "/",
 		Name:     "access_token",
 		Value:    token.AccessToken,
 		Expires:  time,
@@ -101,6 +122,7 @@ func SetToken(w http.ResponseWriter, token *models.LoginResponse, time time.Time
 		SameSite: http.SameSiteStrictMode,
 	})
 	http.SetCookie(w, &http.Cookie{
+		Path:     "/",
 		Name:     "refresh_token",
 		Value:    token.RefreshToken,
 		Expires:  time,

@@ -15,7 +15,7 @@ type UserRepository struct {
 }
 
 // NewUserRepository creates a new UserRepository
-func NewUserRepository(db *sqlx.DB, rdb *redis.Client, cfg *config.Config) *UserRepository {
+func NewUserRepository(db *sqlx.DB, rdb *redis.Client, cfg *config.Config) models.UserRepository {
 	return &UserRepository{
 		Db:  db,
 		Rdb: rdb,
@@ -30,14 +30,14 @@ func (r *UserRepository) Register(user *models.User, account *models.Account) er
 		return err
 	}
 
-	_, err = tx.NamedExec(`INSERT INTO users (id, email, password, created_at, first_name, last_name, username)
-	VALUES (:id, :email, :password, :created_at, :first_name, :last_name, :username)`, user)
+	_, err = tx.NamedExec(`INSERT INTO users (id, email, password, first_name, last_name, username)
+	VALUES (:id, :email, :password, :first_name, :last_name, :username)`, user)
 	if err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	_, err = tx.NamedExec(`INSERT INTO accounts (id, user_id, balance, account_type) VALUES (:id, :user_id, :balance, :account_type)`, account)
+	_, err = tx.NamedExec(`INSERT INTO accounts (user_id, balance, account_type) VALUES (:user_id, :balance, :account_type)`, account)
 	if err != nil {
 		tx.Rollback()
 		return err

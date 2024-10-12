@@ -2,6 +2,9 @@ package models
 
 type AuthUsecase interface {
 	Login(user *UserCredentials) (*LoginResponse, error)
+	Logout(refreshToken string) error
+	RefreshToken(refreshToken string) (*LoginResponse, error)
+	Me(token string) (*User, error)
 }
 
 type AuthRepository interface {

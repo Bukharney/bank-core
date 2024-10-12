@@ -7,7 +7,7 @@ import (
 )
 
 type UserUsecase interface {
-	Register(user *User) error
+	Register(user *User) (int, error)
 }
 
 type UserRepository interface {

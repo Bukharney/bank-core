@@ -13,20 +13,33 @@ import (
 
 // MapHandler maps the routes to the handlers
 func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb *redis.Client) {
+	// Create the repositories
+	UserRepository := repositories.NewUserRepository(pg, rdb, config)
+	AuthRepository := repositories.NewAuthRepository(pg, rdb, config)
+	TransactionRepository := repositories.NewTransactionRepository(pg, rdb, config)
 	AccountRepository := repositories.NewAccountRepository(pg, rdb, config)
 
-	UserRepository := repositories.NewUserRepository(pg, rdb, config)
+	// Create the usecases
 	UserUseCase := usecases.NewUserUsecase(config, UserRepository, AccountRepository)
-	UserHandler := controllers.NewUserController(config, UserUseCase)
+	AuthUseCase := usecases.NewAuthUsecase(config, AuthRepository, UserRepository)
+	TransactionUseCase := usecases.NewTransactionUsecase(config, TransactionRepository, AccountRepository)
 
+	// Create the handlers
+	UserHandler := controllers.NewUserController(config, UserUseCase)
+	AuthHandler := controllers.NewAuthController(config, AuthUseCase)
+	TransactionHandler := controllers.NewTransactionController(config, TransactionUseCase)
+
+	// Transaction routes
+	transactionRouter := http.NewServeMux()
+	transactionRouter.HandleFunc("POST /transfer", TransactionHandler.TransferHandler)
+	handler.Handle("/transaction/", http.StripPrefix("/transaction", transactionRouter))
+
+	// User routes
 	userRouter := http.NewServeMux()
 	userRouter.HandleFunc("POST /register", UserHandler.RegisterHandler)
 	handler.Handle("/user/", http.StripPrefix("/user", userRouter))
 
-	AuthRepository := repositories.NewAuthRepository(pg, rdb, config)
-	AuthUseCase := usecases.NewAuthUsecase(config, AuthRepository, UserRepository)
-	AuthHandler := controllers.NewAuthController(config, AuthUseCase)
-
+	// Auth routes
 	authRouter := http.NewServeMux()
 	authRouter.HandleFunc("POST /login", AuthHandler.LoginHandler)
 	authRouter.HandleFunc("GET /logout", AuthHandler.LogoutHandler)
