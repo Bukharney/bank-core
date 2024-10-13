@@ -7,6 +7,7 @@ import (
 )
 
 type AccountRepository interface {
+	GetAccountByID(accountID int) (*Account, error)
 	GetAccountByUserID(userID string) (*Account, error)
 	CreateAccount(userID string) error
 }

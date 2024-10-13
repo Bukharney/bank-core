@@ -32,6 +32,8 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	// Transaction routes
 	transactionRouter := http.NewServeMux()
 	transactionRouter.HandleFunc("POST /transfer", TransactionHandler.TransferHandler)
+	transactionRouter.HandleFunc("POST /deposit", TransactionHandler.DepositHandler)
+	transactionRouter.HandleFunc("POST /withdraw", TransactionHandler.WithdrawHandler)
 	handler.Handle("/transaction/", http.StripPrefix("/transaction", transactionRouter))
 
 	// User routes

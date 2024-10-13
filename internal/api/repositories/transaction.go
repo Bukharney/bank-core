@@ -88,3 +88,75 @@ func (r *TransactionRepository) GetTransactionsByUserID(userID string) ([]*model
 
 	return transactions, nil
 }
+
+// Deposit deposits money into an account
+func (r *TransactionRepository) Deposit(accountID int, amount float64) error {
+	tx, err := r.Db.Beginx()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("UPDATE accounts SET balance = balance + $1 WHERE id = $2", amount, accountID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	transaction := &models.Transaction{
+		AccountID:            accountID,
+		ReceiverAccountID:    accountID,
+		Amount:               amount,
+		TransactionType:      "deposit",
+		TransactionStatus:    "success",
+		TransactionReference: utils.TransactionReference(),
+	}
+
+	err = r.CreateTransaction(tx, transaction)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Withdrawal withdraws money from an account
+func (r *TransactionRepository) Withdrawal(accountID int, amount float64) error {
+	tx, err := r.Db.Beginx()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec("UPDATE accounts SET balance = balance - $1 WHERE id = $2", amount, accountID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	transaction := &models.Transaction{
+		AccountID:            accountID,
+		ReceiverAccountID:    accountID,
+		Amount:               amount,
+		TransactionType:      "withdrawal",
+		TransactionStatus:    "success",
+		TransactionReference: utils.TransactionReference(),
+	}
+
+	err = r.CreateTransaction(tx, transaction)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

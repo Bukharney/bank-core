@@ -56,3 +56,65 @@ func (c *TransactionController) TransferHandler(w http.ResponseWriter, r *http.R
 
 	responses.JSON(w, http.StatusOK, nil)
 }
+
+// DepositHandler handles the deposit route
+func (c *TransactionController) DepositHandler(w http.ResponseWriter, r *http.Request) {
+	deposit := &models.DepositRequest{}
+	err := utils.DecodeJSON(r, deposit)
+	if err != nil {
+		responses.BadRequest(w, err)
+	}
+
+	err = c.Validate.Struct(deposit)
+	if err != nil {
+		responses.BadRequest(w, err)
+		return
+	}
+
+	userId, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
+	if err != nil {
+		responses.Error(w, http.StatusUnauthorized, err)
+		return
+	}
+
+	deposit.UserID = userId
+
+	err = c.Usecase.Deposit(deposit)
+	if err != nil {
+		responses.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	responses.JSON(w, http.StatusOK, nil)
+}
+
+// WithdrawHandler handles the withdraw route
+func (c *TransactionController) WithdrawHandler(w http.ResponseWriter, r *http.Request) {
+	withdraw := &models.WithdrawalRequest{}
+	err := utils.DecodeJSON(r, withdraw)
+	if err != nil {
+		responses.BadRequest(w, err)
+	}
+
+	err = c.Validate.Struct(withdraw)
+	if err != nil {
+		responses.BadRequest(w, err)
+		return
+	}
+
+	userId, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
+	if err != nil {
+		responses.Error(w, http.StatusUnauthorized, err)
+		return
+	}
+
+	withdraw.UserID = userId
+
+	err = c.Usecase.Withdrawal(withdraw)
+	if err != nil {
+		responses.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	responses.JSON(w, http.StatusOK, nil)
+}

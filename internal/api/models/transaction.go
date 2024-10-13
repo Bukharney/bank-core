@@ -10,10 +10,14 @@ type TransactionRepository interface {
 	CreateTransaction(tx *sqlx.Tx, transaction *Transaction) error
 	GetTransactionsByUserID(userID string) ([]*Transaction, error)
 	Transfer(fromAccountID int, toAccountID int, amount float64) error
+	Deposit(accountID int, amount float64) error
+	Withdrawal(accountID int, amount float64) error
 }
 
 type TransactionUsecase interface {
 	Transfer(req *TransferRequest) error
+	Deposit(req *DepositRequest) error
+	Withdrawal(req *WithdrawalRequest) error
 }
 
 type Transaction struct {
@@ -32,4 +36,18 @@ type TransferRequest struct {
 	FromAccountID int     `json:"from_account_id"`
 	ToAccountID   int     `json:"to_account_id" validate:"required"`
 	Amount        float64 `json:"amount" validate:"required"`
+}
+
+type DepositRequest struct {
+	UserID     string  `json:"user_id"`
+	AccountID  int     `json:"account_id" validate:"required"`
+	Amount     float64 `json:"amount" validate:"required"`
+	DepositRef string  `json:"deposit_ref"`
+}
+
+type WithdrawalRequest struct {
+	UserID        string  `json:"user_id"`
+	AccountID     int     `json:"account_id" validate:"required"`
+	Amount        float64 `json:"amount" validate:"required"`
+	WithdrawalRef string  `json:"withdrawal_ref"`
 }

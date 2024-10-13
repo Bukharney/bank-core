@@ -104,5 +104,4 @@ func (c *AuthController) MeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responses.Success(w, user)
-
 }

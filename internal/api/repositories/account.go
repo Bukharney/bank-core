@@ -33,6 +33,17 @@ func (r *AccountRepository) CreateAccount(userID string) error {
 	return nil
 }
 
+// GetAccountByID gets an account by ID
+func (r *AccountRepository) GetAccountByID(accountID int) (*models.Account, error) {
+	account := &models.Account{}
+	err := r.Db.Get(account, "SELECT * FROM accounts WHERE id = $1", accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	return account, nil
+}
+
 // GetAccount gets an account by user ID
 func (r *AccountRepository) GetAccountByUserID(userID string) (*models.Account, error) {
 	account := &models.Account{}
