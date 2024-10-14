@@ -3,7 +3,9 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/bukharney/bank-core/internal/responses"
@@ -38,4 +40,17 @@ func TransactionReference() string {
 	return time.Now().Format("20060102150405")
 }
 
-// ExtractUserID extracts the user ID from the request
+// GetUserIdFromRequest gets the user ID from the request
+func GetIDFromRequest(r *http.Request, key string) (string, error) {
+	id := r.Context().Value(key)
+	if id == nil {
+		return "", errors.New("ID not found")
+	}
+
+	return id.(string), nil
+}
+
+// StringToInt converts a string to an int
+func StringToInt(s string) (int, error) {
+	return strconv.Atoi(s)
+}

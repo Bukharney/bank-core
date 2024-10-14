@@ -25,16 +25,20 @@ func NewTransactionUsecase(cfg *config.Config, repo models.TransactionRepository
 
 // Transfer transfers money from one account to another
 func (u *TransactionUsecase) Transfer(req *models.TransferRequest) error {
-	account, err := u.AccountRepo.GetAccountByUserID(req.UserID)
+	accounts, err := u.AccountRepo.GetAccountByID(req.FromAccountID)
 	if err != nil {
 		return err
 	}
 
-	if account.Balance < req.Amount {
+	if accounts.UserID.String() != req.UserID {
+		return errors.New("account does not belong to user")
+	}
+
+	if accounts.Balance < req.Amount {
 		return errors.New("insufficient funds")
 	}
 
-	err = u.Repo.Transfer(account.ID, req.ToAccountID, req.Amount)
+	err = u.Repo.Transfer(accounts.ID, req.ToAccountID, req.Amount)
 	if err != nil {
 		return err
 	}
@@ -44,12 +48,12 @@ func (u *TransactionUsecase) Transfer(req *models.TransferRequest) error {
 
 // Deposit deposits money into an account
 func (u *TransactionUsecase) Deposit(req *models.DepositRequest) error {
-	account, err := u.AccountRepo.GetAccountByUserID(req.UserID)
+	account, err := u.AccountRepo.GetAccountsByUserID(req.UserID)
 	if err != nil {
 		return err
 	}
 
-	if account.AccountType != "atm" {
+	if (*account)[0].AccountType != "atm" {
 		return errors.New("only ATM accounts can deposit money")
 	}
 
@@ -63,12 +67,12 @@ func (u *TransactionUsecase) Deposit(req *models.DepositRequest) error {
 
 // Withdraw withdraws money from an account
 func (u *TransactionUsecase) Withdrawal(req *models.WithdrawalRequest) error {
-	atmAccount, err := u.AccountRepo.GetAccountByUserID(req.UserID)
+	atmAccount, err := u.AccountRepo.GetAccountsByUserID(req.UserID)
 	if err != nil {
 		return err
 	}
 
-	if atmAccount.AccountType != "atm" {
+	if (*atmAccount)[0].AccountType != "atm" {
 		return errors.New("only ATM accounts can withdraw money")
 	}
 

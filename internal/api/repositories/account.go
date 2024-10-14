@@ -24,8 +24,9 @@ func NewAccountRepository(pg *sqlx.DB, rdb *redis.Client, cfg *config.Config) mo
 }
 
 // CreateAccount creates a new account
-func (r *AccountRepository) CreateAccount(userID string) error {
-	_, err := r.Db.Exec("INSERT INTO accounts (user_id, balance) VALUES ($1, $2)", userID, 0)
+func (r *AccountRepository) CreateAccount(account *models.CreateAccountRequest) error {
+	_, err := r.Db.NamedExec(`INSERT INTO accounts (user_id, balance, account_type)
+	VALUES (:user_id, :balance, :account_type)`, account)
 	if err != nil {
 		return err
 	}
@@ -45,12 +46,12 @@ func (r *AccountRepository) GetAccountByID(accountID int) (*models.Account, erro
 }
 
 // GetAccount gets an account by user ID
-func (r *AccountRepository) GetAccountByUserID(userID string) (*models.Account, error) {
-	account := &models.Account{}
-	err := r.Db.Get(account, "SELECT * FROM accounts WHERE user_id = $1", userID)
+func (r *AccountRepository) GetAccountsByUserID(userID string) (*[]models.Account, error) {
+	accounts := &[]models.Account{}
+	err := r.Db.Select(accounts, "SELECT * FROM accounts WHERE user_id = $1", userID)
 	if err != nil {
 		return nil, err
 	}
 
-	return account, nil
+	return accounts, nil
 }
