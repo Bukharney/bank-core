@@ -1,6 +1,7 @@
 -- Create a table for storing user information
 CREATE TABLE users (
     id UUID PRIMARY KEY,
+    role VARCHAR(50) DEFAULT 'user',
     username VARCHAR(50) NOT NULL,
     first_name VARCHAR(50),
     last_name VARCHAR(50),

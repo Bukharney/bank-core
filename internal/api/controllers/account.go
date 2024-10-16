@@ -62,7 +62,7 @@ func (c *AccountController) GetAccountHandler(w http.ResponseWriter, r *http.Req
 
 // GetAccountByIDHandler handles the get account by ID route
 func (c *AccountController) GetAccountByIDHandler(w http.ResponseWriter, r *http.Request) {
-	accountId, err := utils.GetIDFromRequest(r, "accountId")
+	accountId, err := utils.GetIDFromRequest(r, "id")
 	if err != nil {
 		responses.BadRequest(w, err)
 		return

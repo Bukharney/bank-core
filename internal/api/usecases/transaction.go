@@ -12,14 +12,16 @@ type TransactionUsecase struct {
 	Cfg         *config.Config
 	Repo        models.TransactionRepository
 	AccountRepo models.AccountRepository
+	UserRepo    models.UserRepository
 }
 
 // NewTransactionUsecase creates a new TransactionUsecase
-func NewTransactionUsecase(cfg *config.Config, repo models.TransactionRepository, accountRepo models.AccountRepository) models.TransactionUsecase {
+func NewTransactionUsecase(cfg *config.Config, repo models.TransactionRepository, accountRepo models.AccountRepository, userRepo models.UserRepository) models.TransactionUsecase {
 	return &TransactionUsecase{
 		Cfg:         cfg,
 		Repo:        repo,
 		AccountRepo: accountRepo,
+		UserRepo:    userRepo,
 	}
 }
 
@@ -67,13 +69,13 @@ func (u *TransactionUsecase) Deposit(req *models.DepositRequest) error {
 
 // Withdraw withdraws money from an account
 func (u *TransactionUsecase) Withdrawal(req *models.WithdrawalRequest) error {
-	atmAccount, err := u.AccountRepo.GetAccountsByUserID(req.UserID)
+	atm, err := u.AccountRepo.GetAccountByID(req.AtmID)
 	if err != nil {
 		return err
 	}
 
-	if (*atmAccount)[0].AccountType != "atm" {
-		return errors.New("only ATM accounts can withdraw money")
+	if atm.AccountType != "atm" {
+		return errors.New("invalid ATM account")
 	}
 
 	account, err := u.AccountRepo.GetAccountByID(req.AccountID)
@@ -81,14 +83,52 @@ func (u *TransactionUsecase) Withdrawal(req *models.WithdrawalRequest) error {
 		return err
 	}
 
+	if account.UserID.String() != req.UserID {
+		return errors.New("account does not belong to user")
+	}
+
 	if account.Balance < req.Amount {
 		return errors.New("insufficient funds")
 	}
 
-	err = u.Repo.Withdrawal(req.AccountID, req.Amount)
+	err = u.Repo.Withdrawal(req.AccountID, req.AtmID, req.Amount)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// UpdateTransactionStatus updates the status of a transaction
+func (u *TransactionUsecase) UpdateTransactionStatus(req *models.UpdateTransactionStatusRequest) error {
+	user, err := u.UserRepo.GetUserById(req.UserID)
+	if err != nil {
+		return err
+	}
+
+	if user.Role != "admin" {
+		return errors.New("unauthorized")
+	}
+
+	_, err = u.Repo.GetTransactionByID(req.ID)
+	if err != nil {
+		return err
+	}
+
+	err = u.Repo.UpdateTransactionStatus(req.ID, req.Status)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetTransactionsByAccountID gets all transactions by account ID
+func (u *TransactionUsecase) GetTransactionsByAccountID(accountID int) ([]*models.Transaction, error) {
+	return u.Repo.GetTransactionsByAccountID(accountID)
+}
+
+// GetTransactionByID gets a transaction by ID
+func (u *TransactionUsecase) GetTransactionByID(id int) (*models.Transaction, error) {
+	return u.Repo.GetTransactionByID(id)
 }

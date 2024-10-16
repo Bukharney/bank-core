@@ -42,12 +42,12 @@ func TransactionReference() string {
 
 // GetUserIdFromRequest gets the user ID from the request
 func GetIDFromRequest(r *http.Request, key string) (string, error) {
-	id := r.Context().Value(key)
-	if id == nil {
-		return "", errors.New("ID not found")
+	id := r.PathValue(key)
+	if id == "" {
+		return "", errors.New("missing id")
 	}
 
-	return id.(string), nil
+	return id, nil
 }
 
 // StringToInt converts a string to an int

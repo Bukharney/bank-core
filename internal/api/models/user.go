@@ -18,6 +18,7 @@ type UserRepository interface {
 
 type User struct {
 	ID        uuid.UUID `json:"id" db:"id"`
+	Role      string    `json:"role" db:"role"`
 	Username  string    `json:"username" db:"username" validate:"required"`
 	FirstName string    `json:"first_name" db:"first_name" validate:"required"`
 	LastName  string    `json:"last_name" db:"last_name" validate:"required"`

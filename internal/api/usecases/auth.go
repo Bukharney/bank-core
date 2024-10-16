@@ -30,6 +30,9 @@ func NewAuthUsecase(cfg *config.Config, repo models.AuthRepository, userRepo mod
 func (u *AuthUsecase) Login(user *models.UserCredentials) (*models.LoginResponse, error) {
 	dbUser, err := u.UserRepo.GetUserByEmail(user.Email)
 	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return nil, fmt.Errorf("user not found")
+		}
 		return nil, err
 	}
 

@@ -22,7 +22,7 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	// Create the usecases
 	UserUseCase := usecases.NewUserUsecase(config, UserRepository, AccountRepository)
 	AuthUseCase := usecases.NewAuthUsecase(config, AuthRepository, UserRepository)
-	TransactionUseCase := usecases.NewTransactionUsecase(config, TransactionRepository, AccountRepository)
+	TransactionUseCase := usecases.NewTransactionUsecase(config, TransactionRepository, AccountRepository, UserRepository)
 	AccountUseCase := usecases.NewAccountUsecase(config, AccountRepository)
 
 	// Create the handlers
@@ -36,11 +36,13 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	transactionRouter.HandleFunc("POST /transfer", TransactionHandler.TransferHandler)
 	transactionRouter.HandleFunc("POST /deposit", TransactionHandler.DepositHandler)
 	transactionRouter.HandleFunc("POST /withdraw", TransactionHandler.WithdrawHandler)
+	transactionRouter.HandleFunc("PATCH /status", TransactionHandler.UpdateTransactionStatusHandler)
 	handler.Handle("/transaction/", http.StripPrefix("/transaction", transactionRouter))
 
 	// Account routes
 	accountRouter := http.NewServeMux()
 	accountRouter.HandleFunc("POST /create", AccountHandler.CreateAccountHandler)
+	accountRouter.HandleFunc("GET /{id}", AccountHandler.GetAccountByIDHandler)
 	accountRouter.HandleFunc("GET /", AccountHandler.GetAccountHandler)
 	handler.Handle("/account/", http.StripPrefix("/account", accountRouter))
 

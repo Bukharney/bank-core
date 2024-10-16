@@ -118,3 +118,34 @@ func (c *TransactionController) WithdrawHandler(w http.ResponseWriter, r *http.R
 
 	responses.JSON(w, http.StatusOK, nil)
 }
+
+// UpdateTransactionHandler handles the update transaction route
+func (c *TransactionController) UpdateTransactionStatusHandler(w http.ResponseWriter, r *http.Request) {
+	update := &models.UpdateTransactionStatusRequest{}
+	err := utils.DecodeJSON(r, update)
+	if err != nil {
+		responses.BadRequest(w, err)
+	}
+
+	err = c.Validate.Struct(update)
+	if err != nil {
+		responses.BadRequest(w, err)
+		return
+	}
+
+	userId, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
+	if err != nil {
+		responses.Error(w, http.StatusUnauthorized, err)
+		return
+	}
+
+	update.UserID = userId
+
+	err = c.Usecase.UpdateTransactionStatus(update)
+	if err != nil {
+		responses.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	responses.JSON(w, http.StatusOK, nil)
+}

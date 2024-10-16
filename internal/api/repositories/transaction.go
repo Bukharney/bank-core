@@ -1,6 +1,8 @@
 package repositories
 
 import (
+	"errors"
+
 	"github.com/bukharney/bank-core/internal/api/models"
 	"github.com/bukharney/bank-core/internal/config"
 	"github.com/bukharney/bank-core/internal/utils"
@@ -34,6 +36,50 @@ func (r *TransactionRepository) CreateTransaction(tx *sqlx.Tx, transaction *mode
 	}
 
 	return nil
+}
+
+// UpdateTransactionStatus updates the status of a transaction
+func (r *TransactionRepository) UpdateTransactionStatus(id int, status string) error {
+	res, err := r.Db.Exec("UPDATE transactions SET transaction_status = $1 WHERE id = $2", status, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("transaction not found")
+	}
+
+	return nil
+}
+
+// GetTransactionsByAccountID gets transactions by account ID
+func (r *TransactionRepository) GetTransactionsByAccountID(accountID int) ([]*models.Transaction, error) {
+	transactions := []*models.Transaction{}
+	err := r.Db.Select(&transactions, "SELECT * FROM transactions WHERE account_id = $1", accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	return transactions, nil
+}
+
+// GetTransactionByID gets a transaction by ID
+func (r *TransactionRepository) GetTransactionByID(id int) (*models.Transaction, error) {
+	transaction := &models.Transaction{}
+	err := r.Db.Get(transaction, "SELECT * FROM transactions WHERE id = $1", id)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return nil, errors.New("transaction not found")
+		}
+		return nil, err
+	}
+
+	return transaction, nil
 }
 
 // Transfer transfers money from one account to another
@@ -126,7 +172,7 @@ func (r *TransactionRepository) Deposit(accountID int, amount float64) error {
 }
 
 // Withdrawal withdraws money from an account
-func (r *TransactionRepository) Withdrawal(accountID int, amount float64) error {
+func (r *TransactionRepository) Withdrawal(accountID int, atmId int, amount float64) error {
 	tx, err := r.Db.Beginx()
 	if err != nil {
 		return err
@@ -140,10 +186,10 @@ func (r *TransactionRepository) Withdrawal(accountID int, amount float64) error 
 
 	transaction := &models.Transaction{
 		AccountID:            accountID,
-		ReceiverAccountID:    accountID,
+		ReceiverAccountID:    atmId,
 		Amount:               amount,
 		TransactionType:      "withdrawal",
-		TransactionStatus:    "success",
+		TransactionStatus:    "pending",
 		TransactionReference: utils.TransactionReference(),
 	}
 
