@@ -1,22 +1,26 @@
 package usecases
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
+	"net/http"
 
 	"github.com/bukharney/bank-core/internal/api/models"
+	"github.com/bukharney/bank-core/internal/api/repositories"
 	"github.com/bukharney/bank-core/internal/config"
 )
 
 // TransactionUsecase is the usecase for the transaction routes
 type TransactionUsecase struct {
 	Cfg         *config.Config
-	Repo        models.TransactionRepository
-	AccountRepo models.AccountRepository
-	UserRepo    models.UserRepository
+	Repo        *repositories.TransactionRepository
+	AccountRepo *repositories.AccountRepository
+	UserRepo    *repositories.UserRepository
 }
 
 // NewTransactionUsecase creates a new TransactionUsecase
-func NewTransactionUsecase(cfg *config.Config, repo models.TransactionRepository, accountRepo models.AccountRepository, userRepo models.UserRepository) models.TransactionUsecase {
+func NewTransactionUsecase(cfg *config.Config, repo *repositories.TransactionRepository, accountRepo *repositories.AccountRepository, userRepo *repositories.UserRepository) *TransactionUsecase {
 	return &TransactionUsecase{
 		Cfg:         cfg,
 		Repo:        repo,
@@ -50,13 +54,13 @@ func (u *TransactionUsecase) Transfer(req *models.TransferRequest) error {
 
 // Deposit deposits money into an account
 func (u *TransactionUsecase) Deposit(req *models.DepositRequest) error {
-	account, err := u.AccountRepo.GetAccountsByUserID(req.UserID)
+	atm, err := u.UserRepo.GetUserById(req.UserID)
 	if err != nil {
 		return err
 	}
 
-	if (*account)[0].AccountType != "atm" {
-		return errors.New("only ATM accounts can deposit money")
+	if atm.Role != "atm" {
+		return errors.New("only ATMs can deposit money")
 	}
 
 	err = u.Repo.Deposit(req.AccountID, req.Amount)
@@ -69,15 +73,6 @@ func (u *TransactionUsecase) Deposit(req *models.DepositRequest) error {
 
 // Withdraw withdraws money from an account
 func (u *TransactionUsecase) Withdrawal(req *models.WithdrawalRequest) error {
-	atm, err := u.AccountRepo.GetAccountByID(req.AtmID)
-	if err != nil {
-		return err
-	}
-
-	if atm.AccountType != "atm" {
-		return errors.New("invalid ATM account")
-	}
-
 	account, err := u.AccountRepo.GetAccountByID(req.AccountID)
 	if err != nil {
 		return err
@@ -91,9 +86,32 @@ func (u *TransactionUsecase) Withdrawal(req *models.WithdrawalRequest) error {
 		return errors.New("insufficient funds")
 	}
 
-	err = u.Repo.Withdrawal(req.AccountID, req.AtmID, req.Amount)
+	err = u.Repo.Withdraw(account.ID, req.ATMID, req.Amount)
 	if err != nil {
 		return err
+	}
+
+	t := struct {
+		SessionID string  `json:"session_id"`
+		Amount    float64 `json:"amount"`
+	}{
+		SessionID: req.SessionID,
+		Amount:    req.Amount,
+	}
+
+	jsonData, err := json.Marshal(t)
+	if err != nil {
+		return err
+	}
+
+	res, err := http.Post("http://localhost:8081/atm/dispense", "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return errors.New("could not send signal to ATM")
 	}
 
 	return nil

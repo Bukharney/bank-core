@@ -15,7 +15,7 @@ type AccountRepository struct {
 }
 
 // NewAccountRepository creates a new AccountRepository
-func NewAccountRepository(pg *sqlx.DB, rdb *redis.Client, cfg *config.Config) models.AccountRepository {
+func NewAccountRepository(pg *sqlx.DB, rdb *redis.Client, cfg *config.Config) *AccountRepository {
 	return &AccountRepository{
 		Db:  pg,
 		Rdb: rdb,

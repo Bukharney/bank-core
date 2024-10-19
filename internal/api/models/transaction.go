@@ -53,9 +53,10 @@ type DepositRequest struct {
 
 type WithdrawalRequest struct {
 	UserID        string  `json:"user_id"`
-	AtmID         int     `json:"atm_id" validate:"required"`
 	AccountID     int     `json:"account_id" validate:"required"`
 	Amount        float64 `json:"amount" validate:"required"`
+	ATMID         int     `json:"atm_id" validate:"required"`
+	SessionID     string  `json:"session_id" validate:"required"`
 	WithdrawalRef string  `json:"withdrawal_ref"`
 }
 

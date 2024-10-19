@@ -105,3 +105,8 @@ func (c *AuthController) MeHandler(w http.ResponseWriter, r *http.Request) {
 
 	responses.Success(w, user)
 }
+
+// TestHandler handles the test route
+func (c *AuthController) TestHandler(w http.ResponseWriter, r *http.Request) {
+	responses.Success(w, "Hello, World!")
+}

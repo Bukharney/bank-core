@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/bukharney/bank-core/internal/api/models"
+	"github.com/bukharney/bank-core/internal/api/usecases"
 	"github.com/bukharney/bank-core/internal/config"
 	"github.com/bukharney/bank-core/internal/responses"
 	"github.com/bukharney/bank-core/internal/utils"
@@ -14,11 +15,11 @@ import (
 type TransactionController struct {
 	Cfg      *config.Config
 	Validate *validator.Validate
-	Usecase  models.TransactionUsecase
+	Usecase  *usecases.TransactionUsecase
 }
 
 // NewTransactionController creates a new TransactionController
-func NewTransactionController(cfg *config.Config, usecase models.TransactionUsecase) *TransactionController {
+func NewTransactionController(cfg *config.Config, usecase *usecases.TransactionUsecase) *TransactionController {
 	return &TransactionController{
 		Cfg:      cfg,
 		Validate: validator.New(),

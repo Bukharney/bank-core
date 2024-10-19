@@ -15,7 +15,7 @@ type UserRepository struct {
 }
 
 // NewUserRepository creates a new UserRepository
-func NewUserRepository(db *sqlx.DB, rdb *redis.Client, cfg *config.Config) models.UserRepository {
+func NewUserRepository(db *sqlx.DB, rdb *redis.Client, cfg *config.Config) *UserRepository {
 	return &UserRepository{
 		Db:  db,
 		Rdb: rdb,

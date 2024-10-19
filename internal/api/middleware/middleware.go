@@ -14,6 +14,7 @@ import (
 var unprotectedRoutes = map[string]bool{
 	"/user/register": true,
 	"/auth/login":    true,
+	"/auth/test":     true,
 }
 
 // statusResponseWriter wraps http.ResponseWriter to capture the status code

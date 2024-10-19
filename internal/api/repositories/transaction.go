@@ -18,7 +18,7 @@ type TransactionRepository struct {
 }
 
 // NewTransactionRepository creates a new TransactionRepository
-func NewTransactionRepository(pg *sqlx.DB, rdb *redis.Client, cfg *config.Config) models.TransactionRepository {
+func NewTransactionRepository(pg *sqlx.DB, rdb *redis.Client, cfg *config.Config) *TransactionRepository {
 	return &TransactionRepository{
 		Db:  pg,
 		Rdb: rdb,
@@ -172,7 +172,7 @@ func (r *TransactionRepository) Deposit(accountID int, amount float64) error {
 }
 
 // Withdrawal withdraws money from an account
-func (r *TransactionRepository) Withdrawal(accountID int, atmId int, amount float64) error {
+func (r *TransactionRepository) Withdraw(accountID int, atmId int, amount float64) error {
 	tx, err := r.Db.Beginx()
 	if err != nil {
 		return err
@@ -188,7 +188,7 @@ func (r *TransactionRepository) Withdrawal(accountID int, atmId int, amount floa
 		AccountID:            accountID,
 		ReceiverAccountID:    atmId,
 		Amount:               amount,
-		TransactionType:      "withdrawal",
+		TransactionType:      "withdraw",
 		TransactionStatus:    "pending",
 		TransactionReference: utils.TransactionReference(),
 	}
