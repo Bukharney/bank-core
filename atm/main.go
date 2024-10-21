@@ -52,8 +52,29 @@ func simulateDispense(amount int) error {
 	return nil
 }
 
+func spawnATMServer(n int) {
+	for i := 0; i < n; i++ {
+		go func() {
+			serv := &http.Server{
+				Addr: fmt.Sprintf(":808%d", i+1),
+				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/atm/dispense" {
+						dispenseCash(w, r)
+					}
+				},
+				),
+			}
+			log.Printf("ATM server %d started", i+1)
+			if err := serv.ListenAndServe(); err != nil {
+				log.Fatalf("ATM server %d failed: %v", i+1, err)
+			}
+
+			defer serv.Close()
+		}()
+	}
+}
+
 func main() {
-	http.HandleFunc("/atm/dispense", dispenseCash)
-	log.Println("ATM server is listening on port 8081...")
-	log.Fatal(http.ListenAndServe(":8081", nil))
+	spawnATMServer(3)
+	select {}
 }
