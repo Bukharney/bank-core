@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/bukharney/bank-core/internal/api/models"
@@ -104,7 +105,12 @@ func (u *TransactionUsecase) Withdrawal(req *models.WithdrawalRequest) error {
 		return err
 	}
 
-	res, err := http.Post("http://localhost:8081/atm/dispense", "application/json", bytes.NewBuffer(jsonData))
+	// Send signal to ATM to dispense cash
+	// This is a simulation and will not actually dispense cash
+	// The ATM server is running on a separate port
+	// But in a real-world scenario, the ATM server would be running on a separate machine
+	// and the request would be sent over the network
+	res, err := http.Post(fmt.Sprintf("http://localhost:808%d/atm/dispense", req.ATMID), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return err
 	}

@@ -117,7 +117,11 @@ func (c *TransactionController) WithdrawHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	responses.JSON(w, http.StatusOK, nil)
+	response := map[string]interface{}{
+		"message": "Withdrawal successful",
+		"amount":  withdraw.Amount,
+	}
+	responses.JSON(w, http.StatusOK, response)
 }
 
 // UpdateTransactionHandler handles the update transaction route

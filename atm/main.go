@@ -8,10 +8,11 @@ import (
 	"time"
 
 	"github.com/bukharney/bank-core/atm/models"
+	"github.com/bukharney/bank-core/atm/session"
 )
 
 // dispenseCash simulates dispensing cash.
-func dispenseCash(w http.ResponseWriter, r *http.Request) {
+func dispenseCash(w http.ResponseWriter, r *http.Request, s session.Session) {
 	var req models.DispenseRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
@@ -22,6 +23,17 @@ func dispenseCash(w http.ResponseWriter, r *http.Request) {
 
 	if req.SessionID == "" || req.Amount <= 0 {
 		http.Error(w, "Invalid session ID or amount", http.StatusBadRequest)
+		return
+	}
+
+	ok := s.ValidateSession(req.SessionID)
+	if !ok {
+		log.Printf("Invalid session ID: %s", req.SessionID)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(models.DispenseResponse{
+			Status:  "error",
+			Message: "Invalid session ID",
+		})
 		return
 	}
 
@@ -55,21 +67,22 @@ func simulateDispense(amount int) error {
 func spawnATMServer(n int) {
 	for i := 0; i < n; i++ {
 		go func() {
-			serv := &http.Server{
-				Addr: fmt.Sprintf(":808%d", i+1),
-				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					if r.URL.Path == "/atm/dispense" {
-						dispenseCash(w, r)
-					}
-				},
-				),
-			}
-			log.Printf("ATM server %d started", i+1)
-			if err := serv.ListenAndServe(); err != nil {
-				log.Fatalf("ATM server %d failed: %v", i+1, err)
-			}
-
-			defer serv.Close()
+			s := session.NewSession()
+			mux := http.NewServeMux()
+			mux.HandleFunc("/atm/dispense", func(w http.ResponseWriter, r *http.Request) {
+				dispenseCash(w, r, s)
+			})
+			mux.HandleFunc("/atm/health", func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("ATM server is running"))
+			})
+			mux.Handle("/session", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(fmt.Sprintf(`{"session_id": "%s"}`, s.CreateSession())))
+			}))
+			log.Printf("ATM server started on :808%d", i)
+			log.Fatal(http.ListenAndServe(fmt.Sprintf(":808%d", i+1), mux))
 		}()
 	}
 }
