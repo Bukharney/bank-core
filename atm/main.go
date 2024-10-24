@@ -12,7 +12,7 @@ import (
 )
 
 // dispenseCash simulates dispensing cash.
-func dispenseCash(w http.ResponseWriter, r *http.Request, s session.Session) {
+func dispenseCash(w http.ResponseWriter, r *http.Request, s session.SessionM) {
 	var req models.DispenseRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
