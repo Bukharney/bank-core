@@ -79,7 +79,7 @@ func spawnATMServer(n int) {
 			mux.Handle("/session", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(fmt.Sprintf(`{"session_id": "%s"}`, s.CreateSession())))
+				w.Write([]byte(fmt.Sprintf(`{"session_id": "%s"}`, s.CreateSession(5*time.Minute))))
 			}))
 			log.Printf("ATM server started on :808%d", i)
 			log.Fatal(http.ListenAndServe(fmt.Sprintf(":808%d", i+1), mux))

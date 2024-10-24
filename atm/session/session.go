@@ -2,7 +2,6 @@ package session
 
 import (
 	"fmt"
-	"log"
 	"time"
 )
 
@@ -15,7 +14,7 @@ func NewSession() Session {
 	s := Session{
 		session: make(map[string]time.Time),
 	}
-	s.init()
+	s.init(time.Minute * 1)
 	return s
 }
 
@@ -26,9 +25,10 @@ func (s *Session) ValidateSession(sessionID string) bool {
 }
 
 // CreateSession creates a new session.
-func (s *Session) CreateSession() string {
+// t is the duration for which the session is valid.
+func (s *Session) CreateSession(t time.Duration) string {
 	sessionID := fmt.Sprintf("%d", time.Now().UnixNano())
-	s.session[sessionID] = time.Now().Add(5 * time.Minute)
+	s.session[sessionID] = time.Now().Add(t)
 	return sessionID
 }
 
@@ -36,18 +36,18 @@ func (s *Session) CreateSession() string {
 func (s *Session) sessionCleanup() {
 	for k, v := range s.session {
 		if time.Now().After(v) {
-			log.Printf("Session %s has expired", k)
 			delete(s.session, k)
 		}
 	}
 }
 
 // init initializes the session package.
-func (s *Session) init() {
+// t is the period after which the session cleanup process is triggered.
+func (s *Session) init(t time.Duration) {
 	go func() {
 		for {
 			s.sessionCleanup()
-			time.Sleep(1 * time.Minute)
+			time.Sleep(t)
 		}
 	}()
 }
