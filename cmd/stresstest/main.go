@@ -28,7 +28,7 @@ type UserRegisterRequest struct {
 }
 
 type LoginRequest struct {
-	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
@@ -68,6 +68,7 @@ type APIResponse struct {
 type ClientSession struct {
 	Client   *http.Client
 	Username string
+	Email    string
 	Password string
 	Accounts []Account
 }
@@ -83,6 +84,7 @@ func newSession() (*ClientSession, error) {
 
 func (s *ClientSession) RegisterAndLogin(prefix string) error {
 	s.Username = fmt.Sprintf("stress_%s_%d", prefix, rand.Intn(1000000))
+	s.Email = fmt.Sprintf("%s@example.com", s.Username)
 	s.Password = "P@ssword12345!"
 
 	regBody := UserRegisterRequest{
@@ -90,7 +92,7 @@ func (s *ClientSession) RegisterAndLogin(prefix string) error {
 		Password:    s.Password,
 		FirstName:   "Stress",
 		LastName:    "Tester",
-		Email:       fmt.Sprintf("%s@example.com", s.Username),
+		Email:       s.Email,
 		PhoneNumber: fmt.Sprintf("08%08d", rand.Intn(100000000)),
 	}
 
@@ -102,7 +104,7 @@ func (s *ClientSession) RegisterAndLogin(prefix string) error {
 	resp.Body.Close()
 
 	loginBody := LoginRequest{
-		Username: s.Username,
+		Email:    s.Email,
 		Password: s.Password,
 	}
 	payload, _ = json.Marshal(loginBody)
