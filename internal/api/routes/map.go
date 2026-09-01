@@ -2,10 +2,13 @@ package routes
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/bukharney/bank-core/internal/api/controllers"
+	"github.com/bukharney/bank-core/internal/api/middleware"
 	"github.com/bukharney/bank-core/internal/api/repositories"
 	"github.com/bukharney/bank-core/internal/api/usecases"
+	"github.com/bukharney/bank-core/internal/atm"
 	"github.com/bukharney/bank-core/internal/config"
 	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
@@ -13,50 +16,69 @@ import (
 
 // MapHandler maps the routes to the handlers
 func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb *redis.Client) {
-	// Create the repositories
-	UserRepository := repositories.NewUserRepository(pg, rdb, config)
-	AuthRepository := repositories.NewAuthRepository(pg, rdb, config)
-	TransactionRepository := repositories.NewTransactionRepository(pg, rdb, config)
-	AccountRepository := repositories.NewAccountRepository(pg, rdb, config)
+	// Clients
+	atmClient := atm.NewATMClient()
 
-	// Create the usecases
-	UserUseCase := usecases.NewUserUsecase(config, UserRepository, AccountRepository)
-	AuthUseCase := usecases.NewAuthUsecase(config, AuthRepository, UserRepository)
-	TransactionUseCase := usecases.NewTransactionUsecase(config, TransactionRepository, AccountRepository, UserRepository)
-	AccountUseCase := usecases.NewAccountUsecase(config, AccountRepository)
+	// Repositories
+	userRepository := repositories.NewUserRepository(pg, rdb, config)
+	authRepository := repositories.NewAuthRepository(pg, rdb, config)
+	accountRepository := repositories.NewAccountRepository(pg, rdb, config)
+	ledgerRepository := repositories.NewLedgerRepository(pg, rdb, config)
+	outboxRepository := repositories.NewOutboxRepository(pg, rdb, config)
+	idempotencyRepository := repositories.NewIdempotencyRepository(pg, rdb, config)
 
-	// Create the handlers
-	UserHandler := controllers.NewUserController(config, UserUseCase)
-	AuthHandler := controllers.NewAuthController(config, AuthUseCase)
-	TransactionHandler := controllers.NewTransactionController(config, TransactionUseCase)
-	AccountHandler := controllers.NewAccountController(config, AccountUseCase)
+	// Usecases
+	userUseCase := usecases.NewUserUsecase(config, userRepository, accountRepository)
+	authUseCase := usecases.NewAuthUsecase(config, authRepository, userRepository)
+	accountUseCase := usecases.NewAccountUsecase(config, accountRepository)
+	ledgerUseCase := usecases.NewLedgerUsecase(config, pg, ledgerRepository, accountRepository)
+	transferUseCase := usecases.NewTransferUsecase(config, pg, accountRepository, userRepository, ledgerRepository, outboxRepository, atmClient)
 
-	// Transaction routes
+	// Controllers
+	userHandler := controllers.NewUserController(config, userUseCase)
+	authHandler := controllers.NewAuthController(config, authUseCase)
+	accountHandler := controllers.NewAccountController(config, accountUseCase)
+	transactionHandler := controllers.NewTransactionController(config, transferUseCase)
+	ledgerHandler := controllers.NewLedgerController(config, ledgerUseCase)
+
+	// Idempotency Middleware for mutating operations
+	idempotencyMiddleware := middleware.IdempotencyMiddleware(idempotencyRepository, config, 30*time.Second)
+
+	// Transaction routes (Protected by Idempotency Gateway)
 	transactionRouter := http.NewServeMux()
-	transactionRouter.HandleFunc("POST /transfer", TransactionHandler.TransferHandler)
-	transactionRouter.HandleFunc("POST /deposit", TransactionHandler.DepositHandler)
-	transactionRouter.HandleFunc("POST /withdraw", TransactionHandler.WithdrawHandler)
-	transactionRouter.HandleFunc("PATCH /status", TransactionHandler.UpdateTransactionStatusHandler)
-	handler.Handle("/transaction/", http.StripPrefix("/transaction", transactionRouter))
+	transactionRouter.HandleFunc("POST /transfer", transactionHandler.TransferHandler)
+	transactionRouter.HandleFunc("POST /deposit", transactionHandler.DepositHandler)
+	transactionRouter.HandleFunc("POST /withdraw", transactionHandler.WithdrawHandler)
+	transactionRouter.HandleFunc("POST /withdraw/request", transactionHandler.RequestCardlessWithdrawalHandler)
+	transactionRouter.HandleFunc("POST /withdraw/verify", transactionHandler.VerifyCardlessWithdrawalHandler)
+	transactionRouter.HandleFunc("POST /withdraw/confirm", transactionHandler.ConfirmCardlessWithdrawalHandler)
+	handler.Handle("/transaction/", http.StripPrefix("/transaction", idempotencyMiddleware(transactionRouter)))
 
-	// Account routes
+	// Ledger routes
+	ledgerRouter := http.NewServeMux()
+	ledgerRouter.HandleFunc("GET /statement/{id}", ledgerHandler.GetAccountStatementHandler)
+	ledgerRouter.HandleFunc("GET /journal/{id}", ledgerHandler.GetJournalDetailsHandler)
+	handler.Handle("/ledger/", http.StripPrefix("/ledger", ledgerRouter))
+
 	accountRouter := http.NewServeMux()
-	accountRouter.HandleFunc("POST /create", AccountHandler.CreateAccountHandler)
-	accountRouter.HandleFunc("GET /{id}", AccountHandler.GetAccountByIDHandler)
-	accountRouter.HandleFunc("GET /", AccountHandler.GetAccountHandler)
-	handler.Handle("/account/", http.StripPrefix("/account", accountRouter))
+	accountRouter.HandleFunc("POST /create", accountHandler.CreateAccountHandler)
+	accountRouter.HandleFunc("GET /{id}", accountHandler.GetAccountByIDHandler)
+	accountRouter.HandleFunc("GET /", accountHandler.GetAccountHandler)
+	accountRouter.HandleFunc("GET /{$}", accountHandler.GetAccountHandler)
+	handler.Handle("/account/", http.StripPrefix("/account", idempotencyMiddleware(accountRouter)))
+	handler.Handle("/account", idempotencyMiddleware(http.HandlerFunc(accountHandler.GetAccountHandler)))
 
 	// User routes
 	userRouter := http.NewServeMux()
-	userRouter.HandleFunc("POST /register", UserHandler.RegisterHandler)
+	userRouter.HandleFunc("POST /register", userHandler.RegisterHandler)
 	handler.Handle("/user/", http.StripPrefix("/user", userRouter))
 
 	// Auth routes
 	authRouter := http.NewServeMux()
-	authRouter.HandleFunc("POST /login", AuthHandler.LoginHandler)
-	authRouter.HandleFunc("GET /logout", AuthHandler.LogoutHandler)
-	authRouter.HandleFunc("GET /me", AuthHandler.MeHandler)
-	authRouter.HandleFunc("GET /refresh", AuthHandler.RefreshTokenHandler)
-	authRouter.HandleFunc("GET /test", AuthHandler.TestHandler)
+	authRouter.HandleFunc("POST /login", authHandler.LoginHandler)
+	authRouter.HandleFunc("GET /logout", authHandler.LogoutHandler)
+	authRouter.HandleFunc("GET /me", authHandler.MeHandler)
+	authRouter.HandleFunc("GET /refresh", authHandler.RefreshTokenHandler)
+	authRouter.HandleFunc("GET /test", authHandler.TestHandler)
 	handler.Handle("/auth/", http.StripPrefix("/auth", authRouter))
 }

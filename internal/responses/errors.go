@@ -5,9 +5,9 @@ import (
 	"net/http"
 )
 
-// JSON is a helper function to return a JSON response
 func JSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(data)
 }

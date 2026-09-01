@@ -4,22 +4,20 @@ import (
 	"net/http"
 
 	"github.com/bukharney/bank-core/internal/api/models"
-	"github.com/bukharney/bank-core/internal/api/usecases"
 	"github.com/bukharney/bank-core/internal/config"
 	"github.com/bukharney/bank-core/internal/responses"
 	"github.com/bukharney/bank-core/internal/utils"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 )
 
-// TransactionController is the controller for the transaction routes
 type TransactionController struct {
 	Cfg      *config.Config
 	Validate *validator.Validate
-	Usecase  *usecases.TransactionUsecase
+	Usecase  models.TransferUsecase
 }
 
-// NewTransactionController creates a new TransactionController
-func NewTransactionController(cfg *config.Config, usecase *usecases.TransactionUsecase) *TransactionController {
+func NewTransactionController(cfg *config.Config, usecase models.TransferUsecase) *TransactionController {
 	return &TransactionController{
 		Cfg:      cfg,
 		Validate: validator.New(),
@@ -27,12 +25,13 @@ func NewTransactionController(cfg *config.Config, usecase *usecases.TransactionU
 	}
 }
 
-// TransferHandler handles the transfer route
+// TransferHandler handles money transfers
 func (c *TransactionController) TransferHandler(w http.ResponseWriter, r *http.Request) {
 	transfer := &models.TransferRequest{}
 	err := utils.DecodeJSON(r, transfer)
 	if err != nil {
 		responses.BadRequest(w, err)
+		return
 	}
 
 	err = c.Validate.Struct(transfer)
@@ -41,29 +40,36 @@ func (c *TransactionController) TransferHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	userId, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
+	userIdStr, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
 	if err != nil {
 		responses.Error(w, http.StatusUnauthorized, err)
 		return
 	}
 
-	transfer.UserID = userId
-
-	err = c.Usecase.Transfer(transfer)
+	userID, err := uuid.Parse(userIdStr)
 	if err != nil {
-		responses.Error(w, http.StatusInternalServerError, err)
+		responses.Error(w, http.StatusUnauthorized, err)
 		return
 	}
 
-	responses.JSON(w, http.StatusOK, nil)
+	idempotencyKey := r.Header.Get("Idempotency-Key")
+
+	receipt, err := c.Usecase.Transfer(userID, transfer, idempotencyKey)
+	if err != nil {
+		responses.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	responses.JSON(w, http.StatusOK, receipt)
 }
 
-// DepositHandler handles the deposit route
+// DepositHandler handles deposits
 func (c *TransactionController) DepositHandler(w http.ResponseWriter, r *http.Request) {
 	deposit := &models.DepositRequest{}
 	err := utils.DecodeJSON(r, deposit)
 	if err != nil {
 		responses.BadRequest(w, err)
+		return
 	}
 
 	err = c.Validate.Struct(deposit)
@@ -72,29 +78,36 @@ func (c *TransactionController) DepositHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	userId, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
+	userIdStr, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
 	if err != nil {
 		responses.Error(w, http.StatusUnauthorized, err)
 		return
 	}
 
-	deposit.UserID = userId
-
-	err = c.Usecase.Deposit(deposit)
+	userID, err := uuid.Parse(userIdStr)
 	if err != nil {
-		responses.Error(w, http.StatusInternalServerError, err)
+		responses.Error(w, http.StatusUnauthorized, err)
 		return
 	}
 
-	responses.JSON(w, http.StatusOK, nil)
+	idempotencyKey := r.Header.Get("Idempotency-Key")
+
+	receipt, err := c.Usecase.Deposit(userID, deposit, idempotencyKey)
+	if err != nil {
+		responses.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	responses.JSON(w, http.StatusOK, receipt)
 }
 
-// WithdrawHandler handles the withdraw route
+// WithdrawHandler handles cash withdrawals
 func (c *TransactionController) WithdrawHandler(w http.ResponseWriter, r *http.Request) {
 	withdraw := &models.WithdrawalRequest{}
 	err := utils.DecodeJSON(r, withdraw)
 	if err != nil {
 		responses.BadRequest(w, err)
+		return
 	}
 
 	err = c.Validate.Struct(withdraw)
@@ -103,54 +116,91 @@ func (c *TransactionController) WithdrawHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	userId, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
+	userIdStr, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
 	if err != nil {
 		responses.Error(w, http.StatusUnauthorized, err)
 		return
 	}
 
-	withdraw.UserID = userId
-
-	err = c.Usecase.Withdrawal(withdraw)
+	userID, err := uuid.Parse(userIdStr)
 	if err != nil {
-		responses.Error(w, http.StatusInternalServerError, err)
+		responses.Error(w, http.StatusUnauthorized, err)
 		return
 	}
 
-	response := map[string]interface{}{
-		"message": "Withdrawal successful",
-		"amount":  withdraw.Amount,
+	idempotencyKey := r.Header.Get("Idempotency-Key")
+
+	receipt, err := c.Usecase.Withdrawal(userID, withdraw, idempotencyKey)
+	if err != nil {
+		responses.Error(w, http.StatusBadRequest, err)
+		return
 	}
-	responses.JSON(w, http.StatusOK, response)
+
+	responses.JSON(w, http.StatusOK, receipt)
 }
 
-// UpdateTransactionHandler handles the update transaction route
-func (c *TransactionController) UpdateTransactionStatusHandler(w http.ResponseWriter, r *http.Request) {
-	update := &models.UpdateTransactionStatusRequest{}
-	err := utils.DecodeJSON(r, update)
-	if err != nil {
-		responses.BadRequest(w, err)
-	}
-
-	err = c.Validate.Struct(update)
+// RequestCardlessWithdrawalHandler handles generation of 6-digit OTP code for ATM withdrawal
+func (c *TransactionController) RequestCardlessWithdrawalHandler(w http.ResponseWriter, r *http.Request) {
+	req := &models.RequestCardlessWithdrawalRequest{}
+	err := utils.DecodeJSON(r, req)
 	if err != nil {
 		responses.BadRequest(w, err)
 		return
 	}
 
-	userId, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
+	userIdStr, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
 	if err != nil {
 		responses.Error(w, http.StatusUnauthorized, err)
 		return
 	}
 
-	update.UserID = userId
-
-	err = c.Usecase.UpdateTransactionStatus(update)
+	userID, err := uuid.Parse(userIdStr)
 	if err != nil {
-		responses.Error(w, http.StatusInternalServerError, err)
+		responses.Error(w, http.StatusUnauthorized, err)
 		return
 	}
 
-	responses.JSON(w, http.StatusOK, nil)
+	ticket, err := c.Usecase.RequestCardlessWithdrawal(userID, req)
+	if err != nil {
+		responses.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	responses.JSON(w, http.StatusOK, ticket)
+}
+
+// VerifyCardlessWithdrawalHandler allows ATM machine to verify phone + 6-digit code
+func (c *TransactionController) VerifyCardlessWithdrawalHandler(w http.ResponseWriter, r *http.Request) {
+	req := &models.VerifyCardlessWithdrawalRequest{}
+	err := utils.DecodeJSON(r, req)
+	if err != nil {
+		responses.BadRequest(w, err)
+		return
+	}
+
+	res, err := c.Usecase.VerifyCardlessWithdrawal(req)
+	if err != nil {
+		responses.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	responses.JSON(w, http.StatusOK, res)
+}
+
+// ConfirmCardlessWithdrawalHandler allows ATM machine to confirm physical cash dispense and commit double-entry
+func (c *TransactionController) ConfirmCardlessWithdrawalHandler(w http.ResponseWriter, r *http.Request) {
+	req := &models.ConfirmCardlessWithdrawalRequest{}
+	err := utils.DecodeJSON(r, req)
+	if err != nil {
+		responses.BadRequest(w, err)
+		return
+	}
+
+	receipt, err := c.Usecase.ConfirmCardlessWithdrawal(req)
+	if err != nil {
+		responses.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	responses.JSON(w, http.StatusOK, receipt)
 }

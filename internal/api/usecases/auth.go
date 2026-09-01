@@ -10,14 +10,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// AuthUsecase is the usecase for the auth routes
 type AuthUsecase struct {
 	Cfg      *config.Config
 	Repo     models.AuthRepository
 	UserRepo models.UserRepository
 }
 
-// NewAuthUsecase creates a new AuthUsecase
 func NewAuthUsecase(cfg *config.Config, repo models.AuthRepository, userRepo models.UserRepository) models.AuthUsecase {
 	return &AuthUsecase{
 		UserRepo: userRepo,
@@ -26,19 +24,15 @@ func NewAuthUsecase(cfg *config.Config, repo models.AuthRepository, userRepo mod
 	}
 }
 
-// Login logs in a user
 func (u *AuthUsecase) Login(user *models.UserCredentials) (*models.LoginResponse, error) {
 	dbUser, err := u.UserRepo.GetUserByEmail(user.Email)
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
-			return nil, fmt.Errorf("user not found")
-		}
-		return nil, err
+		return nil, fmt.Errorf("invalid email or password")
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(user.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(dbUser.PasswordHash), []byte(user.Password))
 	if err != nil {
-		return nil, fmt.Errorf("invalid password")
+		return nil, fmt.Errorf("invalid email or password")
 	}
 
 	refreshToken, err := utils.GenerateToken(u.Cfg, dbUser.ID, true)
@@ -46,8 +40,7 @@ func (u *AuthUsecase) Login(user *models.UserCredentials) (*models.LoginResponse
 		return nil, err
 	}
 
-	strId := dbUser.ID.String()
-	err = u.Repo.UpdateRefreshToken(strId, refreshToken)
+	err = u.Repo.UpdateRefreshToken(dbUser.ID.String(), refreshToken)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +56,6 @@ func (u *AuthUsecase) Login(user *models.UserCredentials) (*models.LoginResponse
 	}, nil
 }
 
-// Logout logs out a user
 func (u *AuthUsecase) Logout(refreshToken string) error {
 	userId, err := utils.ParseToken(u.Cfg, refreshToken, true)
 	if err != nil {
@@ -73,36 +65,47 @@ func (u *AuthUsecase) Logout(refreshToken string) error {
 	return u.Repo.UpdateRefreshToken(userId, "")
 }
 
-// RefreshToken refreshes the access token
 func (u *AuthUsecase) RefreshToken(refreshToken string) (*models.LoginResponse, error) {
-	userId, err := utils.ParseToken(u.Cfg, refreshToken, true)
+	userIdStr, err := utils.ParseToken(u.Cfg, refreshToken, true)
 	if err != nil {
 		return nil, fmt.Errorf("invalid refresh token")
 	}
 
-	accessToken, err := utils.GenerateToken(u.Cfg, uuid.MustParse(userId), false)
+	userID, err := uuid.Parse(userIdStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user id in token")
+	}
+
+	accessToken, err := utils.GenerateToken(u.Cfg, userID, false)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err = utils.GenerateToken(u.Cfg, uuid.MustParse(userId), true)
+	newRefreshToken, err := utils.GenerateToken(u.Cfg, userID, true)
 	if err != nil {
 		return nil, err
 	}
+
+	_ = u.Repo.UpdateRefreshToken(userIdStr, newRefreshToken)
 
 	return &models.LoginResponse{
 		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
+		RefreshToken: newRefreshToken,
 	}, nil
 }
 
 func (u *AuthUsecase) Me(token string) (*models.User, error) {
-	userId, err := utils.GetUserIdFromToken(u.Cfg, token, false)
+	userIdStr, err := utils.GetUserIdFromToken(u.Cfg, token, false)
 	if err != nil {
 		return nil, err
 	}
 
-	user, err := u.UserRepo.GetUserById(userId)
+	userID, err := uuid.Parse(userIdStr)
+	if err != nil {
+		return nil, err
+	}
+
+	user, err := u.UserRepo.GetUserByID(userID)
 	if err != nil {
 		return nil, err
 	}

@@ -1,2 +1,28 @@
+# Environment variables
 .env
-tmp
+.env*.local
+
+# Node & Next.js
+node_modules/
+.next/
+out/
+build/
+dist/
+.pnpm-store/
+
+# Air & Go build binaries
+tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.log
+
+# Scratch & Session dumps
+session.txt
+scratch/
+
+# OS files
+.DS_Store
+Thumbs.db

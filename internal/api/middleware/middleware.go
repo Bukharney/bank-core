@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"runtime/debug"
 	"time"
@@ -12,9 +13,11 @@ import (
 )
 
 var unprotectedRoutes = map[string]bool{
-	"/user/register": true,
-	"/auth/login":    true,
-	"/auth/test":     true,
+	"/user/register":                true,
+	"/auth/login":                   true,
+	"/auth/test":                    true,
+	"/transaction/withdraw/verify":  true,
+	"/transaction/withdraw/confirm": true,
 }
 
 // statusResponseWriter wraps http.ResponseWriter to capture the status code
@@ -59,12 +62,21 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			responses.BadRequest(w, err)
 			return
 		}
-		if !utils.ValidateToken(cfg, token, false) {
+
+		userIdStr, err := utils.GetUserIdFromToken(cfg, token, false)
+		if err != nil {
 			responses.Unauthorized(w, err)
 			return
 		}
 
-		next.ServeHTTP(w, r)
+		parsedID, err := utils.ParseUUID(userIdStr)
+		if err != nil {
+			responses.Unauthorized(w, err)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), UserIDContextKey, parsedID)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 

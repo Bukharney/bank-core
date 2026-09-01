@@ -10,14 +10,12 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-// UserController is the controller for the user routes
 type UserController struct {
 	Cfg      *config.Config
 	Validate *validator.Validate
 	Usecase  models.UserUsecase
 }
 
-// NewUserController creates a new UserController
 func NewUserController(cfg *config.Config, usecase models.UserUsecase) *UserController {
 	return &UserController{
 		Cfg:      cfg,
@@ -26,25 +24,26 @@ func NewUserController(cfg *config.Config, usecase models.UserUsecase) *UserCont
 	}
 }
 
-// RegisterHandler handles the registration route
+// RegisterHandler handles user registration
 func (c *UserController) RegisterHandler(w http.ResponseWriter, r *http.Request) {
-	user := &models.User{}
-	err := utils.DecodeJSON(r, user)
-	if err != nil {
-		responses.BadRequest(w, err)
-	}
-
-	err = c.Validate.Struct(user)
+	req := &models.RegisterRequest{}
+	err := utils.DecodeJSON(r, req)
 	if err != nil {
 		responses.BadRequest(w, err)
 		return
 	}
 
-	status, err := c.Usecase.Register(user)
+	err = c.Validate.Struct(req)
 	if err != nil {
-		responses.Error(w, status, err)
+		responses.BadRequest(w, err)
 		return
 	}
 
-	responses.JSON(w, http.StatusCreated, nil)
+	user, err := c.Usecase.Register(req)
+	if err != nil {
+		responses.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	responses.JSON(w, http.StatusCreated, user)
 }
