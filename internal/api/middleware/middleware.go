@@ -4,15 +4,18 @@ import (
 	"context"
 	"net/http"
 	"runtime/debug"
+	"strconv"
 	"time"
 
 	"github.com/bukharney/bank-core/internal/config"
 	logger "github.com/bukharney/bank-core/internal/logs"
+	"github.com/bukharney/bank-core/internal/metrics"
 	"github.com/bukharney/bank-core/internal/responses"
 	"github.com/bukharney/bank-core/internal/utils"
 )
 
 var unprotectedRoutes = map[string]bool{
+	"/metrics":                      true,
 	"/user/register":                true,
 	"/auth/login":                   true,
 	"/auth/test":                    true,
@@ -80,14 +83,24 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// LoggerMiddleware logs the request and response
+// LoggerMiddleware logs the request, response, and records Prometheus HTTP metrics
 func LoggerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
 		// Wrap the ResponseWriter to capture the status code
 		srw := &statusResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 
 		next.ServeHTTP(srw, r)
-		logger.Logger.Infof("[%s] %s %s %d", r.Method, r.URL.Path, r.RemoteAddr, srw.statusCode)
+
+		duration := time.Since(start).Seconds()
+
+		// Record Prometheus HTTP Metrics (skip /metrics itself from pollution)
+		if r.URL.Path != "/metrics" {
+			metrics.HTTPRequestsTotal.WithLabelValues(r.Method, r.URL.Path, strconv.Itoa(srw.statusCode)).Inc()
+			metrics.HTTPRequestDuration.WithLabelValues(r.Method, r.URL.Path).Observe(duration)
+		}
+
+		logger.Logger.Infof("[%s] %s %s %d (%.2fms)", r.Method, r.URL.Path, r.RemoteAddr, srw.statusCode, duration*1000)
 	})
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/bukharney/bank-core/internal/api/models"
 	logger "github.com/bukharney/bank-core/internal/logs"
+	"github.com/bukharney/bank-core/internal/metrics"
 )
 
 type OutboxWorker struct {
@@ -123,10 +124,11 @@ func (w *OutboxWorker) ProcessBatch(ctx context.Context) (int, error) {
 	for _, event := range events {
 		pubErr := w.publisher.Publish(ctx, event)
 		if pubErr != nil {
-			logger.Logger.Errorf("[Outbox Worker] Failed to publish event %s (Attempt %d/%d): %v",
-				event.ID, event.RetryCount+1, event.MaxRetries, pubErr)
+			metrics.OutboxEventsProcessedTotal.WithLabelValues(event.EventType, "failed").Inc()
+			logger.Logger.Errorf("[Outbox Worker] Failed to publish event %s (ID: %s): %v", event.EventType, event.ID, pubErr)
 			_ = w.repo.MarkFailed(ctx, event.ID, pubErr.Error())
 		} else {
+			metrics.OutboxEventsProcessedTotal.WithLabelValues(event.EventType, "success").Inc()
 			_ = w.repo.MarkPublished(ctx, event.ID)
 		}
 	}

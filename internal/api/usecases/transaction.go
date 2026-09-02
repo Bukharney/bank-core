@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/bukharney/bank-core/internal/api/models"
 	"github.com/bukharney/bank-core/internal/atm"
 	"github.com/bukharney/bank-core/internal/config"
+	"github.com/bukharney/bank-core/internal/metrics"
 	"github.com/bukharney/bank-core/internal/utils"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -48,6 +50,7 @@ func (u *TransferUsecase) verifyUserPin(userID uuid.UUID, pin string) error {
 		return errors.New("security PIN is not configured. Please set up a 6-digit PIN in Settings")
 	}
 	if user.PinFailedAttempts >= 5 {
+		metrics.PINAttemptsTotal.WithLabelValues("locked").Inc()
 		return errors.New("PIN is locked due to too many failed attempts (5/5). Please reset your PIN in Settings using your password")
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(*user.PinHash), []byte(pin)); err != nil {
@@ -57,11 +60,14 @@ func (u *TransferUsecase) verifyUserPin(userID uuid.UUID, pin string) error {
 		}
 		remaining := 5 - attempts
 		if remaining <= 0 {
+			metrics.PINAttemptsTotal.WithLabelValues("locked").Inc()
 			return errors.New("incorrect PIN. Your PIN is now locked (5/5 attempts). Please reset your PIN in Settings")
 		}
+		metrics.PINAttemptsTotal.WithLabelValues("failed").Inc()
 		return fmt.Errorf("incorrect PIN. %d attempt(s) remaining", remaining)
 	}
 	_ = u.UserRepo.ResetPinFailedAttempts(userID)
+	metrics.PINAttemptsTotal.WithLabelValues("success").Inc()
 	return nil
 }
 
@@ -229,8 +235,12 @@ func (u *TransferUsecase) Transfer(userID uuid.UUID, req *models.TransferRequest
 	}
 
 	if err := tx.Commit(); err != nil {
+		metrics.TransactionsTotal.WithLabelValues("transfer", "failed").Inc()
 		return nil, err
 	}
+
+	metrics.TransactionsTotal.WithLabelValues("transfer", "success").Inc()
+	metrics.TransactionAmountSatangTotal.WithLabelValues("transfer", senderAcc.Currency).Add(float64(req.Amount))
 
 	return &models.TransferReceipt{
 		JournalID:         journalID,
@@ -345,8 +355,12 @@ func (u *TransferUsecase) Deposit(userID uuid.UUID, req *models.DepositRequest, 
 	}
 
 	if err := tx.Commit(); err != nil {
+		metrics.TransactionsTotal.WithLabelValues("deposit", "failed").Inc()
 		return nil, err
 	}
+
+	metrics.TransactionsTotal.WithLabelValues("deposit", "success").Inc()
+	metrics.TransactionAmountSatangTotal.WithLabelValues("deposit", customerAcc.Currency).Add(float64(req.Amount))
 
 	return &models.TransferReceipt{
 		JournalID:         journalID,
@@ -824,8 +838,14 @@ func (u *TransferUsecase) ConfirmCardlessWithdrawal(req *models.ConfirmCardlessW
 	}
 
 	if err := tx.Commit(); err != nil {
+		metrics.TransactionsTotal.WithLabelValues("withdrawal", "failed").Inc()
+		metrics.ATMDispenseTotal.WithLabelValues(strconv.Itoa(atmID), "failed").Inc()
 		return nil, err
 	}
+
+	metrics.TransactionsTotal.WithLabelValues("withdrawal", "success").Inc()
+	metrics.TransactionAmountSatangTotal.WithLabelValues("withdrawal", order.Currency).Add(float64(order.Amount))
+	metrics.ATMDispenseTotal.WithLabelValues(strconv.Itoa(atmID), "success").Inc()
 
 	return &models.TransferReceipt{
 		JournalID:         journalID,

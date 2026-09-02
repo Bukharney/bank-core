@@ -11,6 +11,7 @@ import (
 	"github.com/bukharney/bank-core/internal/atm"
 	"github.com/bukharney/bank-core/internal/config"
 	"github.com/jmoiron/sqlx"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -85,4 +86,7 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	authRouter.HandleFunc("GET /refresh", authHandler.RefreshTokenHandler)
 	authRouter.HandleFunc("GET /test", authHandler.TestHandler)
 	handler.Handle("/auth/", http.StripPrefix("/auth", authRouter))
+
+	// Prometheus Metrics Scrape Endpoint
+	handler.Handle("GET /metrics", promhttp.Handler())
 }
