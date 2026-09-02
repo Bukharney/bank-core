@@ -10,11 +10,11 @@ down:
 
 # Start backend with Air hot reload
 dev-backend:
-	air
+	cd backend && air
 
 # Start ATM simulator
 dev-atm:
-	cd atm && go run main.go
+	cd backend/atm && go run main.go
 
 # Start Next.js frontend
 dev-frontend:
@@ -22,7 +22,7 @@ dev-frontend:
 
 # Run unit and integration tests
 test:
-	go test ./internal/... -v
+	cd backend && go test ./internal/... -v
 
 # Run complete End-to-End test suite
 e2e:
@@ -30,4 +30,4 @@ e2e:
 
 # Clean temporary build artifacts
 clean:
-	rm -rf tmp/ frontend/.next/
+	rm -rf backend/tmp/ frontend/.next/

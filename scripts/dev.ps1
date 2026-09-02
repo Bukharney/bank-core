@@ -60,8 +60,8 @@ if ($InfraOnly) {
 # 3. Launch Services
 if ($Windows) {
     Write-Host "`n[3/3] Launching Application Services in Separate Windows..." -ForegroundColor Yellow
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$root'; if (Get-Command air -ErrorAction SilentlyContinue) { air } else { go run ./cmd/main.go }"
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$root\atm'; go run main.go"
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$root\backend'; if (Get-Command air -ErrorAction SilentlyContinue) { air } else { go run ./cmd/main.go }"
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$root\backend\atm'; go run main.go"
     Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$root\frontend'; pnpm dev"
 } else {
     Write-Host "`n[3/3] Streaming All Services in this IDE Terminal..." -ForegroundColor Yellow
@@ -70,7 +70,7 @@ if ($Windows) {
     Write-Host "  * Frontend UI:      http://localhost:3000" -ForegroundColor Green
     Write-Host "  * Press Ctrl+C anytime to stop all services & shutdown Docker.`n" -ForegroundColor DarkGray
 
-    $backendCmd = if (Get-Command air -ErrorAction SilentlyContinue) { "air" } else { "go run ./cmd/main.go" }
+    $backendCmd = if (Get-Command air -ErrorAction SilentlyContinue) { "cd backend && air" } else { "cd backend && go run ./cmd/main.go" }
     
     try {
         npx -y concurrently `
@@ -78,7 +78,7 @@ if ($Windows) {
             --prefix-colors "cyan.bold,magenta.bold,green.bold" `
             --names "CORE,ATM,WEB" `
             "$backendCmd" `
-            "cd atm && go run main.go" `
+            "cd backend/atm && go run main.go" `
             "cd frontend && pnpm dev"
     } finally {
         if (-not $NoDocker -and -not $KeepDocker) {

@@ -276,7 +276,7 @@ docker compose up -d
 
 #### Step B: Run Backend Core (with Hot-Reload)
 ```bash
-# In project root:
+cd backend
 air
 # Or standard go run:
 go run ./cmd/main.go
@@ -284,7 +284,7 @@ go run ./cmd/main.go
 
 #### Step C: Run ATM Network Simulator
 ```bash
-cd atm
+cd backend/atm
 go run main.go
 ```
 
@@ -314,6 +314,7 @@ pnpm dev
 ## 🧪 Running Tests & Validation
 ```bash
 # Run all internal unit and integration tests
+cd backend
 go test ./internal/... -v
 
 # Run race condition detector
