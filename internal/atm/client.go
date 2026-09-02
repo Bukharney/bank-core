@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	logger "github.com/bukharney/bank-core/internal/logs"
@@ -33,6 +34,13 @@ type HTTPATMClient struct {
 	endpoints map[int]string
 }
 
+func getEnvOrDefault(key, fallback string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return fallback
+}
+
 // NewATMClient creates a new HTTPATMClient with configured ATM endpoints
 func NewATMClient() ATMClient {
 	return &HTTPATMClient{
@@ -40,9 +48,9 @@ func NewATMClient() ATMClient {
 			Timeout: 6 * time.Second,
 		},
 		endpoints: map[int]string{
-			1: "http://localhost:8081",
-			2: "http://localhost:8082",
-			3: "http://localhost:8083",
+			1: getEnvOrDefault("ATM_VAULT_1_URL", "http://localhost:8081"),
+			2: getEnvOrDefault("ATM_VAULT_2_URL", "http://localhost:8082"),
+			3: getEnvOrDefault("ATM_VAULT_3_URL", "http://localhost:8083"),
 		},
 	}
 }

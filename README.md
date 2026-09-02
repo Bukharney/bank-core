@@ -247,43 +247,78 @@ Idempotency-Key: 7b84c311-570a-4122-8693-bfad23223f01
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started (Local Development)
 
-### Prerequisites
-- Go 1.23+
-- PostgreSQL 14+
-- Redis 7+
+### 1. Prerequisites
+- **Go** 1.23+
+- **Node.js** 18+ & **pnpm**
+- **Docker Desktop** (for PostgreSQL, Redis, Prometheus, Grafana)
+- **Air** (optional, for hot reload: `go install github.com/air-verse/air@latest`)
 
-### Environment Variables
-Create a `.env` file in the root directory:
-```env
-DB_URL="postgres://postgres:password@localhost:5432/bank_core?sslmode=disable"
-REDIS_URL="localhost:6379"
-REDIS_PASSWORD=""
-REDIS_DB=0
-PORT="8080"
-JWT_ACCESS_SECRET="access_secret_key"
-JWT_REFRESH_SECRET="refresh_secret_key"
+### 2. One-Command Dev Launcher (Windows)
+Run the automated development launcher script:
+```powershell
+.\scripts\dev.ps1
+```
+This script automatically:
+1. Creates `.env` from `.env.example` (if missing).
+2. Starts Docker infrastructure (`postgres`, `redis`, `prometheus`, `grafana`, `cadvisor`).
+3. Launches **Bank Core Engine** (`http://localhost:8080`), **ATM Network** (`http://localhost:8081-8083`), and **Next.js Frontend** (`http://localhost:3000`).
+
+---
+
+### 3. Manual Step-by-Step Setup
+
+#### Step A: Start Infrastructure
+```bash
+docker compose up -d
 ```
 
-### Database Migration
-Execute schema initialization:
+#### Step B: Run Backend Core (with Hot-Reload)
 ```bash
-psql -U postgres -d bank_core -f ./internal/db/migrations/init.sql
-```
-
-### Run Application
-```bash
+# In project root:
+air
+# Or standard go run:
 go run ./cmd/main.go
+```
+
+#### Step C: Run ATM Network Simulator
+```bash
+cd atm
+go run main.go
+```
+
+#### Step D: Run Next.js Frontend
+```bash
+cd frontend
+pnpm install
+pnpm dev
 ```
 
 ---
 
-## 🧪 Running Tests
-```bash
-# Run full unit and integration test suite
-go test -v ./...
+### 4. Service Endpoints Map
 
-# Run race detector
-go test -race ./...
+| Service | Local URL | Notes |
+| :--- | :--- | :--- |
+| **Frontend UI** | [http://localhost:3000](http://localhost:3000) | Next.js Dashboard & Transfer Hub |
+| **Bank Core Engine** | [http://localhost:8080](http://localhost:8080) | REST API & Ledger Engine |
+| **ATM Vault #1** | [http://localhost:8081](http://localhost:8081) | ATM Physical Machine Mock #1 |
+| **ATM Vault #2** | [http://localhost:8082](http://localhost:8082) | ATM Physical Machine Mock #2 |
+| **ATM Vault #3** | [http://localhost:8083](http://localhost:8083) | ATM Physical Machine Mock #3 |
+| **Grafana Dashboard** | [http://localhost:3001](http://localhost:3001) | Metrics & Live Telemetry (No login required) |
+| **Prometheus** | [http://localhost:9090](http://localhost:9090) | Metrics Scrape Engine |
+
+---
+
+## 🧪 Running Tests & Validation
+```bash
+# Run all internal unit and integration tests
+go test ./internal/... -v
+
+# Run race condition detector
+go test -race ./internal/...
+
+# Run complete End-to-End Test Suite (Registration, Deposits, Transfers, Idempotency, ATM Claim)
+powershell -File ./test_e2e.ps1
 ```

@@ -1,0 +1,15 @@
+{
+  "name": "bank-core-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "powershell -ExecutionPolicy Bypass -File ./dev.ps1",
+    "dev:all": "powershell -ExecutionPolicy Bypass -File ./dev.ps1",
+    "dev:windows": "powershell -ExecutionPolicy Bypass -File ./dev.ps1 -Windows",
+    "dev:backend": "air",
+    "dev:atm": "cd atm && go run main.go",
+    "dev:frontend": "cd frontend && pnpm dev",
+    "test": "go test ./internal/... -v",
+    "e2e": "powershell -ExecutionPolicy Bypass -File ./test_e2e.ps1"
+  }
+}

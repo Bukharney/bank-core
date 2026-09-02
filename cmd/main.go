@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -51,7 +52,7 @@ func main() {
 	serv := middleware.ApplyMiddleware(mux)
 
 	httpServer := &http.Server{
-		Addr:    ":8080",
+		Addr:    fmt.Sprintf(":%s", cfg.Port),
 		Handler: serv,
 	}
 
@@ -60,7 +61,7 @@ func main() {
 	signal.Notify(stopChan, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		logger.Logger.Info("Bank Core Server is running on port 8080")
+		logger.Logger.Infof("Bank Core Server is running on port %s", cfg.Port)
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Logger.Fatalf("HTTP server error: %v", err)
 		}
