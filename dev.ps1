@@ -1,6 +1,7 @@
 # Bank Core - 1-Command Local Dev Launcher (Runs in current IDE Terminal)
 param (
     [switch]$Windows,
+    [switch]$KeepDocker,
     [switch]$InfraOnly,
     [switch]$NoDocker,
     [switch]$Help
@@ -9,10 +10,11 @@ param (
 if ($Help) {
     Write-Host "Bank Core - Local Dev Launcher" -ForegroundColor Cyan
     Write-Host "Usage:"
-    Write-Host "  .\dev.ps1              # Start Docker infra & run all 3 services in this IDE terminal"
+    Write-Host "  .\dev.ps1              # Start Docker infra, stream all 3 services in IDE, and stop Docker on exit"
+    Write-Host "  .\dev.ps1 -KeepDocker  # Keep Docker containers running after stopping dev services"
     Write-Host "  .\dev.ps1 -Windows     # Open services in separate pop-up windows instead"
     Write-Host "  .\dev.ps1 -InfraOnly   # Only start PostgreSQL, Redis, Prometheus, Grafana"
-    Write-Host "  .\dev.ps1 -NoDocker    # Launch services without starting Docker"
+    Write-Host "  .\dev.ps1 -NoDocker    # Launch services without starting/stopping Docker"
     exit 0
 }
 
@@ -66,15 +68,23 @@ if ($Windows) {
     Write-Host "  * Bank Core Engine: http://localhost:8080" -ForegroundColor Cyan
     Write-Host "  * ATM Simulator:    http://localhost:8081, :8082, :8083" -ForegroundColor Magenta
     Write-Host "  * Frontend UI:      http://localhost:3000" -ForegroundColor Green
-    Write-Host "  * Press Ctrl+C anytime to stop all services.`n" -ForegroundColor DarkGray
+    Write-Host "  * Press Ctrl+C anytime to stop all services & shutdown Docker.`n" -ForegroundColor DarkGray
 
     $backendCmd = if (Get-Command air -ErrorAction SilentlyContinue) { "air" } else { "go run ./cmd/main.go" }
     
-    npx -y concurrently `
-        --kill-others-on-fail `
-        --prefix-colors "cyan.bold,magenta.bold,green.bold" `
-        --names "CORE,ATM,WEB" `
-        "$backendCmd" `
-        "cd atm && go run main.go" `
-        "cd frontend && pnpm dev"
+    try {
+        npx -y concurrently `
+            --kill-others-on-fail `
+            --prefix-colors "cyan.bold,magenta.bold,green.bold" `
+            --names "CORE,ATM,WEB" `
+            "$backendCmd" `
+            "cd atm && go run main.go" `
+            "cd frontend && pnpm dev"
+    } finally {
+        if (-not $NoDocker -and -not $KeepDocker) {
+            Write-Host "`n[Shutdown] Stopping Docker infrastructure..." -ForegroundColor Yellow
+            docker compose down
+            Write-Host "[Shutdown] Docker infrastructure stopped cleanly." -ForegroundColor Green
+        }
+    }
 }
