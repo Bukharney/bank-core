@@ -20,6 +20,7 @@ const (
 // Domain Event Names
 const (
 	EventMoneyTransferred     = "money.transferred"
+	EventMoneyDeposited       = "money.deposited"
 	EventMoneyWithdrawn       = "money.withdrawn"
 	EventATMDispenseFailed    = "atm.dispense_failed"
 	EventAccountCreated       = "account.created"

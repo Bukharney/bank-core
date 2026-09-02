@@ -244,7 +244,7 @@ func (u *TransferUsecase) Transfer(userID uuid.UUID, req *models.TransferRequest
 	}, nil
 }
 
-// Deposit deposits money into customer account
+// Deposit deposits money into customer account with lock-free append-only double-entry balancing against Central Cash Settlement (Account 100)
 func (u *TransferUsecase) Deposit(userID uuid.UUID, req *models.DepositRequest, idempotencyKey string) (*models.TransferReceipt, error) {
 	if req.Amount <= 0 {
 		return nil, errors.New("deposit amount must be greater than zero")
@@ -256,19 +256,23 @@ func (u *TransferUsecase) Deposit(userID uuid.UUID, req *models.DepositRequest, 
 	}
 	defer tx.Rollback()
 
-	account, err := u.AccountRepo.GetAccountByIDForUpdate(tx, req.AccountID)
+	// 1. Lock ONLY the Customer Account (High-concurrency: zero lock contention on Central Settlement)
+	customerAcc, err := u.AccountRepo.GetAccountByIDForUpdate(tx, req.AccountID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("customer account not found: %w", err)
 	}
-	if account.Status != models.AccountStatusActive {
+
+	if customerAcc.Status != models.AccountStatusActive {
 		return nil, ErrReceiverAccountFrozen
 	}
 
-	newBalance := account.Balance + req.Amount
-	if err := u.AccountRepo.UpdateBalance(tx, account.ID, newBalance, 0); err != nil {
+	// 2. Update customer balance
+	newCustomerBalance := customerAcc.Balance + req.Amount
+	if err := u.AccountRepo.UpdateBalance(tx, customerAcc.ID, newCustomerBalance, 0); err != nil {
 		return nil, err
 	}
 
+	// 3. Create Journal Header
 	refID := idempotencyKey
 	if refID == "" {
 		refID = utils.TransactionReference()
@@ -276,7 +280,7 @@ func (u *TransferUsecase) Deposit(userID uuid.UUID, req *models.DepositRequest, 
 	journalID := uuid.New()
 	desc := req.Description
 	if desc == "" {
-		desc = fmt.Sprintf("Deposit to %s (Ref: %s)", account.AccountNumber, req.DepositRef)
+		desc = fmt.Sprintf("Deposit to %s (Ref: %s)", customerAcc.AccountNumber, req.DepositRef)
 	}
 
 	journal := &models.JournalEntry{
@@ -291,16 +295,53 @@ func (u *TransferUsecase) Deposit(userID uuid.UUID, req *models.DepositRequest, 
 		return nil, err
 	}
 
+	// 4. Double-Entry Leg 1: DEBIT Central Cash Settlement (Account 100)
+	// (Append-only insert without row lock to allow unlimited concurrent deposits)
+	settleAccountID := int64(100)
+	debitPosting := &models.LedgerEntry{
+		JournalEntryID: journalID,
+		AccountID:      settleAccountID,
+		EntryType:      models.EntryTypeDebit,
+		Amount:         req.Amount,
+		BalanceAfter:   0,
+		Sequence:       1,
+	}
+	if err := u.LedgerRepo.CreateLedgerEntry(tx, debitPosting); err != nil {
+		return nil, err
+	}
+
+	// 5. Double-Entry Leg 2: CREDIT Customer Account (Customer digital balance increased)
 	creditPosting := &models.LedgerEntry{
 		JournalEntryID: journalID,
-		AccountID:      account.ID,
+		AccountID:      customerAcc.ID,
 		EntryType:      models.EntryTypeCredit,
 		Amount:         req.Amount,
-		BalanceAfter:   newBalance,
-		Sequence:       1,
+		BalanceAfter:   newCustomerBalance,
+		Sequence:       2,
 	}
 	if err := u.LedgerRepo.CreateLedgerEntry(tx, creditPosting); err != nil {
 		return nil, err
+	}
+
+	// 6. Outbox Event
+	if u.OutboxRepo != nil {
+		eventPayload, _ := json.Marshal(map[string]interface{}{
+			"journal_id":   journalID,
+			"reference_id": refID,
+			"account_id":   customerAcc.ID,
+			"amount":       req.Amount,
+			"currency":     customerAcc.Currency,
+			"deposit_ref":  req.DepositRef,
+			"deposited_at": journal.PostedAt,
+		})
+		outboxEvent := &models.OutboxEvent{
+			AggregateType: "DEPOSIT",
+			AggregateID:   journalID.String(),
+			EventType:     models.EventMoneyDeposited,
+			Payload:       eventPayload,
+			Status:        models.OutboxStatusPending,
+		}
+		_ = u.OutboxRepo.InsertOutboxEventTx(tx, outboxEvent)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -310,10 +351,10 @@ func (u *TransferUsecase) Deposit(userID uuid.UUID, req *models.DepositRequest, 
 	return &models.TransferReceipt{
 		JournalID:         journalID,
 		ReferenceID:       refID,
-		SenderAccountID:   0,
-		ReceiverAccountID: account.ID,
+		SenderAccountID:   settleAccountID,
+		ReceiverAccountID: customerAcc.ID,
 		Amount:            req.Amount,
-		Currency:          account.Currency,
+		Currency:          customerAcc.Currency,
 		Status:            "SUCCESS",
 		CreatedAt:         journal.PostedAt,
 	}, nil
