@@ -173,9 +173,7 @@ export const api = {
       }),
 
     claimAtATM: async (atmId: number, phoneNumber: string, code: string) => {
-      // Calls the ATM simulation server directly at http://localhost:808X/atm/claim
-      const port = 8080 + atmId;
-      const res = await fetch(`http://localhost:${port}/atm/claim`, {
+      const res = await fetch(`/api/atm/${atmId}/claim`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone_number: phoneNumber, code }),
