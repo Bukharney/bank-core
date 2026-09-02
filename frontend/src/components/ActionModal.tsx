@@ -18,6 +18,7 @@ import {
   Check,
 } from "lucide-react";
 import ATMSimulatorModal from "./ATMSimulatorModal";
+import KeypadPinModal from "./KeypadPinModal";
 
 interface ActionModalProps {
   type: "deposit" | "withdraw" | null;
@@ -34,6 +35,11 @@ export default function ActionModal({ type, account, onClose, onSuccess }: Actio
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
+
+  // PIN Verification State
+  const [showPinModal, setShowPinModal] = useState<boolean>(false);
+  const [pinLoading, setPinLoading] = useState<boolean>(false);
+  const [pinError, setPinError] = useState<string | null>(null);
 
   // Cardless Ticket State
   const [ticket, setTicket] = useState<CardlessWithdrawalTicket | null>(null);
@@ -56,9 +62,9 @@ export default function ActionModal({ type, account, onClose, onSuccess }: Actio
       return;
     }
 
-    setLoading(true);
-    try {
-      if (type === "deposit") {
+    if (type === "deposit") {
+      setLoading(true);
+      try {
         const res = await api.transactions.deposit({
           account_id: account.id,
           amount: satang,
@@ -75,28 +81,46 @@ export default function ActionModal({ type, account, onClose, onSuccess }: Actio
           onSuccess();
           onClose();
         }
-      } else {
-        // Request Cardless Withdrawal Ticket (Phone + 6-digit OTP)
-        const res = await api.transactions.requestCardless({
-          account_id: account.id,
-          amount: satang,
-          currency: account.currency,
-          atm_id: atmId,
-        });
+      } catch (err: any) {
+        setError(err.message || "Operation failed");
+        showToast(err.message || "Operation failed", "error");
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Prompt 6-digit Security PIN for Cardless Withdrawal
+      setPinError(null);
+      setShowPinModal(true);
+    }
+  };
 
-        if (res.error) {
-          setError(res.error);
-          showToast(res.error, "error");
-        } else if (res.data) {
-          setTicket(res.data);
-          showToast("6-Digit Cardless ATM PIN Generated!", "success");
-        }
+  const handleExecuteCardlessWithPin = async (enteredPin: string) => {
+    const satang = thbToSatang(amount);
+    setPinLoading(true);
+    setPinError(null);
+
+    try {
+      const res = await api.transactions.requestCardless({
+        account_id: account.id,
+        amount: satang,
+        currency: account.currency,
+        atm_id: atmId,
+        pin: enteredPin,
+      });
+
+      if (res.error) {
+        setPinError(res.error);
+        showToast(res.error, "error");
+      } else if (res.data) {
+        setShowPinModal(false);
+        setTicket(res.data);
+        showToast("6-Digit Cardless ATM PIN Generated!", "success");
       }
     } catch (err: any) {
-      setError(err.message || "Operation failed");
+      setPinError(err.message || "Operation failed");
       showToast(err.message || "Operation failed", "error");
     } finally {
-      setLoading(false);
+      setPinLoading(false);
     }
   };
 
@@ -350,6 +374,22 @@ export default function ActionModal({ type, account, onClose, onSuccess }: Actio
           </>
         )}
       </div>
+
+      {/* Security PIN Keypad Modal for Cardless Withdrawal */}
+      <KeypadPinModal
+        isOpen={showPinModal}
+        loading={pinLoading}
+        error={pinError}
+        onClearError={() => setPinError(null)}
+        title="Authorize ATM Withdrawal"
+        subtitle={`Enter your 6-digit transaction PIN to generate a cardless withdrawal ticket of ฿${amount || "0"}`}
+        onClose={() => {
+          setShowPinModal(false);
+          setPinError(null);
+        }}
+        onSubmit={handleExecuteCardlessWithPin}
+      />
     </div>
   );
 }
+

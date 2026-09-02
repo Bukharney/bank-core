@@ -14,6 +14,7 @@ import (
 	"github.com/bukharney/bank-core/internal/utils"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -33,6 +34,35 @@ type TransferUsecase struct {
 	LedgerRepo  models.LedgerRepository
 	OutboxRepo  models.OutboxRepository
 	ATMClient   atm.ATMClient
+}
+
+func (u *TransferUsecase) verifyUserPin(userID uuid.UUID, pin string) error {
+	if u.UserRepo == nil {
+		return nil
+	}
+	user, err := u.UserRepo.GetUserByID(userID)
+	if err != nil {
+		return err
+	}
+	if user.PinHash == nil || *user.PinHash == "" {
+		return errors.New("security PIN is not configured. Please set up a 6-digit PIN in Settings")
+	}
+	if user.PinFailedAttempts >= 5 {
+		return errors.New("PIN is locked due to too many failed attempts (5/5). Please reset your PIN in Settings using your password")
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(*user.PinHash), []byte(pin)); err != nil {
+		attempts, incErr := u.UserRepo.IncrementPinFailedAttempts(userID)
+		if incErr != nil {
+			return incErr
+		}
+		remaining := 5 - attempts
+		if remaining <= 0 {
+			return errors.New("incorrect PIN. Your PIN is now locked (5/5 attempts). Please reset your PIN in Settings")
+		}
+		return fmt.Errorf("incorrect PIN. %d attempt(s) remaining", remaining)
+	}
+	_ = u.UserRepo.ResetPinFailedAttempts(userID)
+	return nil
 }
 
 func NewTransferUsecase(
@@ -57,6 +87,10 @@ func NewTransferUsecase(
 
 // Transfer executes money transfer between two accounts with deadlock prevention & double entry
 func (u *TransferUsecase) Transfer(userID uuid.UUID, req *models.TransferRequest, idempotencyKey string) (*models.TransferReceipt, error) {
+	if err := u.verifyUserPin(userID, req.PIN); err != nil {
+		return nil, err
+	}
+
 	if req.SenderAccountID == req.ReceiverAccountID {
 		return nil, ErrSameAccountTransfer
 	}
@@ -476,6 +510,10 @@ func (u *TransferUsecase) Withdrawal(userID uuid.UUID, req *models.WithdrawalReq
 
 // RequestCardlessWithdrawal generates a 15-minute 6-digit OTP code bound to customer's phone number
 func (u *TransferUsecase) RequestCardlessWithdrawal(userID uuid.UUID, req *models.RequestCardlessWithdrawalRequest) (*models.CardlessWithdrawalTicket, error) {
+	if err := u.verifyUserPin(userID, req.PIN); err != nil {
+		return nil, err
+	}
+
 	if req.Amount <= 0 {
 		return nil, errors.New("withdrawal amount must be greater than zero")
 	}

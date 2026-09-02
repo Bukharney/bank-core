@@ -21,6 +21,7 @@ import {
   BookOpenText,
   Sun,
   Moon,
+  Settings,
 } from "lucide-react";
 import ATMSimulatorModal from "./ATMSimulatorModal";
 
@@ -58,6 +59,7 @@ export default function Navbar() {
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/transfer", label: "Transfer Hub", icon: ArrowLeftRight },
     { href: "/ledger", label: "Ledger Explorer", icon: BookOpenText },
+    { href: "/settings", label: "Settings", icon: Settings },
   ];
 
   return (
@@ -205,19 +207,23 @@ export default function Navbar() {
 
             {/* Profile & Logout */}
             <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-800 pl-2 sm:pl-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs border border-slate-200 dark:border-slate-700">
+              <Link
+                href="/settings"
+                title="Manage Profile Settings"
+                className="flex items-center gap-2 rounded-xl p-1 -m-1 hover:bg-slate-100 dark:hover:bg-slate-800/70 transition group"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs border border-slate-200 dark:border-slate-700 group-hover:border-slate-400 dark:group-hover:border-slate-500 transition">
                   {user.first_name?.[0]?.toUpperCase() || "U"}
                 </div>
                 <div className="hidden lg:block text-left leading-tight">
-                  <div className="text-xs font-bold text-slate-900 dark:text-white">
+                  <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">
                     {user.first_name} {user.last_name}
                   </div>
                   <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
                     {user.email}
                   </div>
                 </div>
-              </div>
+              </Link>
 
               <button
                 onClick={logout}

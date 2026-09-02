@@ -31,14 +31,21 @@ func Connect(cfg *config.Config) (*sqlx.DB, error) {
 
 // Migrate migrates the database
 func Migrate(db *sqlx.DB) error {
-	files, err := os.ReadDir("./internal/db/migrations")
+	migrationDir := "./internal/db/migrations"
+	if _, err := os.Stat(migrationDir); os.IsNotExist(err) {
+		if _, err := os.Stat("../internal/db/migrations"); err == nil {
+			migrationDir = "../internal/db/migrations"
+		}
+	}
+
+	files, err := os.ReadDir(migrationDir)
 	if err != nil {
 		return err
 	}
 
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), ".sql") {
-			migration, err := os.ReadFile(fmt.Sprintf("./internal/db/migrations/%s", file.Name()))
+			migration, err := os.ReadFile(fmt.Sprintf("%s/%s", migrationDir, file.Name()))
 			if err != nil {
 				return err
 			}

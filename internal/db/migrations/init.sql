@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(100) UNIQUE NOT NULL,
     phone_number VARCHAR(20) UNIQUE NULL,
     password_hash VARCHAR(255) NOT NULL,
+    pin_hash VARCHAR(255) NULL,
+    pin_failed_attempts INT NOT NULL DEFAULT 0,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     role VARCHAR(50) NOT NULL DEFAULT 'user',

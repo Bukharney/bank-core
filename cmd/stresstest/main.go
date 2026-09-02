@@ -319,7 +319,8 @@ func main() {
 	fmt.Printf("   - Final Account B Balance: %d Satang (Expected: 10000 Satang)\n", updatedAccB.Balance)
 
 	if successCount == 2 && updatedAccA.Balance == 0 && updatedAccB.Balance == 10000 {
-		fmt.Println(" 🟢 TEST 1 PASSED: Concurrency locks (SELECT FOR UPDATE) prevented any race condition or overdraft leak!\n")
+		fmt.Println(" 🟢 TEST 1 PASSED: Concurrency locks (SELECT FOR UPDATE) prevented any race condition or overdraft leak!")
+		fmt.Println()
 	} else {
 		fmt.Printf(" 🔴 TEST 1 FAILED: Discrepancy detected! (success: %d, balance A: %d, balance B: %d)\n\n", successCount, updatedAccA.Balance, updatedAccB.Balance)
 	}
@@ -382,9 +383,11 @@ func main() {
 	fmt.Printf("   - Total Balance Deducted:             %d Satang (Expected: exactly 5000 Satang)\n", deductedAmount)
 
 	if deductedAmount == 5000 {
-		fmt.Println(" 🟢 TEST 2 PASSED: Idempotency gateway perfectly prevented duplicate debits under race!\n")
+		fmt.Println(" 🟢 TEST 2 PASSED: Idempotency gateway perfectly prevented duplicate debits under race!")
+		fmt.Println()
 	} else {
-		fmt.Println(" 🔴 TEST 2 FAILED: Idempotency violation detected!\n")
+		fmt.Println(" 🔴 TEST 2 FAILED: Idempotency violation detected!")
+		fmt.Println()
 	}
 
 	// -------------------------------------------------------------------------
@@ -474,7 +477,8 @@ func main() {
 	fmt.Printf("   - Max Latency:         %v\n", maxLatency.Round(time.Microsecond))
 
 	if burstSuccess == int64(totalTransfers) {
-		fmt.Println(" 🟢 TEST 3 PASSED: High-throughput burst completed with 100% success rate & zero data loss!\n")
+		fmt.Println(" 🟢 TEST 3 PASSED: High-throughput burst completed with 100% success rate & zero data loss!")
+		fmt.Println()
 	} else {
 		fmt.Printf(" 🟡 TEST 3 COMPLETED: %d successes, %d failures\n\n", burstSuccess, burstFailed)
 	}

@@ -82,5 +82,146 @@ func (u *UserUsecase) Register(req *models.RegisterRequest) (*models.User, error
 }
 
 func (u *UserUsecase) GetProfile(userID uuid.UUID) (*models.User, error) {
-	return u.Repo.GetUserByID(userID)
+	user, err := u.Repo.GetUserByID(userID)
+	if err != nil {
+		return nil, err
+	}
+	user.HasPin = (user.PinHash != nil && *user.PinHash != "")
+	return user, nil
 }
+
+func (u *UserUsecase) UpdateProfile(userID uuid.UUID, req *models.UpdateProfileRequest) (*models.User, error) {
+	if req.FirstName == "" {
+		return nil, fmt.Errorf("first name is required")
+	}
+	if req.LastName == "" {
+		return nil, fmt.Errorf("last name is required")
+	}
+
+	var phonePtr *string
+	if req.PhoneNumber != nil && *req.PhoneNumber != "" {
+		phone := *req.PhoneNumber
+		// Check if another user already has this phone number
+		existingUser, err := u.Repo.GetUserByPhone(phone)
+		if err == nil && existingUser != nil && existingUser.ID != userID {
+			return nil, fmt.Errorf("phone number %s is already registered to another account", phone)
+		}
+		phonePtr = &phone
+	}
+
+	err := u.Repo.UpdateProfile(userID, req.FirstName, req.LastName, phonePtr)
+	if err != nil {
+		return nil, err
+	}
+
+	updatedUser, err := u.Repo.GetUserByID(userID)
+	if err != nil {
+		return nil, err
+	}
+	updatedUser.HasPin = (updatedUser.PinHash != nil && *updatedUser.PinHash != "")
+	return updatedUser, nil
+}
+
+func (u *UserUsecase) ChangePassword(userID uuid.UUID, req *models.ChangePasswordRequest) error {
+	if req.OldPassword == "" {
+		return fmt.Errorf("current password is required")
+	}
+	if len(req.NewPassword) < 8 {
+		return fmt.Errorf("new password must be at least 8 characters")
+	}
+	if req.NewPassword != req.ConfirmPassword {
+		return fmt.Errorf("new password and confirmation do not match")
+	}
+
+	user, err := u.Repo.GetUserByID(userID)
+	if err != nil {
+		return err
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.OldPassword))
+	if err != nil {
+		return fmt.Errorf("incorrect current password")
+	}
+
+	newHashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	return u.Repo.UpdatePassword(userID, string(newHashedPassword))
+}
+
+func (u *UserUsecase) SetPin(userID uuid.UUID, req *models.SetPinRequest) error {
+	if req.Password == "" {
+		return fmt.Errorf("account password is required")
+	}
+	if len(req.PIN) != 6 || !isNumeric(req.PIN) {
+		return fmt.Errorf("PIN must be exactly 6 numeric digits")
+	}
+	if req.PIN != req.ConfirmPIN {
+		return fmt.Errorf("PIN and confirmation do not match")
+	}
+
+	user, err := u.Repo.GetUserByID(userID)
+	if err != nil {
+		return err
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password))
+	if err != nil {
+		return fmt.Errorf("incorrect account password")
+	}
+
+	pinHash, err := bcrypt.GenerateFromPassword([]byte(req.PIN), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	return u.Repo.SetPin(userID, string(pinHash))
+}
+
+func (u *UserUsecase) VerifyPin(userID uuid.UUID, pin string) error {
+	if len(pin) != 6 || !isNumeric(pin) {
+		return fmt.Errorf("invalid PIN format: must be 6 digits")
+	}
+
+	user, err := u.Repo.GetUserByID(userID)
+	if err != nil {
+		return err
+	}
+
+	if user.PinHash == nil || *user.PinHash == "" {
+		return fmt.Errorf("security PIN is not configured. Please set up a 6-digit PIN in Settings")
+	}
+
+	if user.PinFailedAttempts >= 5 {
+		return fmt.Errorf("PIN is locked due to too many failed attempts (5/5). Please reset your PIN in Settings using your password")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(*user.PinHash), []byte(pin))
+	if err != nil {
+		attempts, incErr := u.Repo.IncrementPinFailedAttempts(userID)
+		if incErr != nil {
+			return incErr
+		}
+		remaining := 5 - attempts
+		if remaining <= 0 {
+			return fmt.Errorf("incorrect PIN. Your PIN is now locked (5/5 attempts). Please reset your PIN in Settings")
+		}
+		return fmt.Errorf("incorrect PIN. %d attempt(s) remaining", remaining)
+	}
+
+	_ = u.Repo.ResetPinFailedAttempts(userID)
+	return nil
+}
+
+func isNumeric(s string) bool {
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+

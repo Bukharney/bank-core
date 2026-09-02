@@ -21,6 +21,21 @@ interface AuthContextType {
     first_name: string;
     last_name: string;
   }) => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (data: {
+    first_name: string;
+    last_name: string;
+    phone_number?: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  changePassword: (data: {
+    old_password: string;
+    new_password: string;
+    confirm_password: string;
+  }) => Promise<{ success: boolean; error?: string }>;
+  setPin: (data: {
+    password: string;
+    pin: string;
+    confirm_pin: string;
+  }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 }
 
@@ -109,6 +124,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { success: false, error: res.error || "Registration failed" };
   };
 
+  const updateProfile = async (data: {
+    first_name: string;
+    last_name: string;
+    phone_number?: string;
+  }) => {
+    const res = await api.user.updateProfile(data);
+    if (res.data) {
+      setUser(res.data);
+      return { success: true };
+    }
+    return { success: false, error: res.error || "Failed to update profile" };
+  };
+
+  const changePassword = async (data: {
+    old_password: string;
+    new_password: string;
+    confirm_password: string;
+  }) => {
+    const res = await api.user.changePassword(data);
+    if (res.data) {
+      return { success: true };
+    }
+    return { success: false, error: res.error || "Failed to change password" };
+  };
+
+  const setPin = async (data: {
+    password: string;
+    pin: string;
+    confirm_pin: string;
+  }) => {
+    const res = await api.user.setPin(data);
+    if (res.data) {
+      await refreshData();
+      return { success: true };
+    }
+    return { success: false, error: res.error || "Failed to configure PIN" };
+  };
+
   const logout = async () => {
     await api.auth.logout();
     setUser(null);
@@ -128,6 +181,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshData,
         login,
         register,
+        updateProfile,
+        changePassword,
+        setPin,
         logout,
       }}
     >

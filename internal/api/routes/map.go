@@ -71,6 +71,10 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	// User routes
 	userRouter := http.NewServeMux()
 	userRouter.HandleFunc("POST /register", userHandler.RegisterHandler)
+	userRouter.HandleFunc("PATCH /profile", userHandler.UpdateProfileHandler)
+	userRouter.HandleFunc("PUT /profile", userHandler.UpdateProfileHandler)
+	userRouter.HandleFunc("POST /change-password", userHandler.ChangePasswordHandler)
+	userRouter.HandleFunc("POST /pin", userHandler.SetPinHandler)
 	handler.Handle("/user/", http.StripPrefix("/user", userRouter))
 
 	// Auth routes

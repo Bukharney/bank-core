@@ -74,8 +74,27 @@ func ParseUUID(s string) (uuid.UUID, error) {
 	return uuid.Parse(s)
 }
 
-// HashPayload computes the SHA-256 hash of a byte slice payload
+// HashPayload computes the SHA-256 hash of a byte slice payload,
+// stripping transient authentication credentials (such as "pin" and "password")
+// so that PIN retries do not conflict with the transaction's idempotency key.
 func HashPayload(payload []byte) string {
+	if len(payload) == 0 {
+		hash := sha256.Sum256(payload)
+		return hex.EncodeToString(hash[:])
+	}
+
+	var m map[string]interface{}
+	if err := json.Unmarshal(payload, &m); err == nil {
+		delete(m, "pin")
+		delete(m, "password")
+		delete(m, "confirm_pin")
+		delete(m, "confirm_password")
+		if cleaned, err := json.Marshal(m); err == nil {
+			hash := sha256.Sum256(cleaned)
+			return hex.EncodeToString(hash[:])
+		}
+	}
+
 	hash := sha256.Sum256(payload)
 	return hex.EncodeToString(hash[:])
 }

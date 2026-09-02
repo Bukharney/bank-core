@@ -12,6 +12,7 @@ type TransferRequest struct {
 	Amount            int64  `json:"amount" validate:"required,gt=0"` // In minor units (Satang)
 	Currency          string `json:"currency" validate:"required,len=3"`
 	Description       string `json:"description" validate:"max=255"`
+	PIN               string `json:"pin" validate:"required,len=6,numeric"`
 }
 
 type DepositRequest struct {
@@ -55,6 +56,7 @@ type RequestCardlessWithdrawalRequest struct {
 	Currency    string `json:"currency"`
 	ATMID       int    `json:"atm_id"`
 	PhoneNumber string `json:"phone_number"`
+	PIN         string `json:"pin" validate:"required,len=6,numeric"`
 }
 
 type CardlessWithdrawalTicket struct {

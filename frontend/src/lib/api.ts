@@ -97,6 +97,26 @@ export const api = {
     logout: () => request<void>("/auth/logout", { method: "GET" }),
   },
 
+  user: {
+    updateProfile: (data: { first_name: string; last_name: string; phone_number?: string }) =>
+      request<User>("/user/profile", {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+
+    changePassword: (data: { old_password: string; new_password: string; confirm_password: string }) =>
+      request<{ message: string }>("/user/change-password", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    setPin: (data: { password: string; pin: string; confirm_pin: string }) =>
+      request<{ message: string }>("/user/pin", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+  },
+
   accounts: {
     list: () => request<Account[]>("/account", { method: "GET" }),
 
@@ -138,6 +158,7 @@ export const api = {
     requestCardless: (data: {
       account_id: number;
       amount: number;
+      pin: string;
       currency?: string;
       atm_id?: number;
       phone_number?: string;

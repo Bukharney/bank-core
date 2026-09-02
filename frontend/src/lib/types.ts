@@ -7,6 +7,8 @@ export interface User {
   last_name: string;
   role: string;
   status: string;
+  has_pin?: boolean;
+  pin_failed_attempts?: number;
   created_at: string;
 }
 
@@ -30,6 +32,7 @@ export interface TransferRequest {
   amount: number; // In minor unit (Satang)
   currency: string;
   description?: string;
+  pin?: string;
 }
 
 export interface DepositRequest {

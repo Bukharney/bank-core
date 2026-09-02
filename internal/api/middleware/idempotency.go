@@ -151,14 +151,14 @@ func IdempotencyMiddleware(repo models.IdempotencyRepository, cfg *config.Config
 			next.ServeHTTP(rec, r)
 
 			// Save the final response
-			if rec.statusCode >= 200 && rec.statusCode < 500 {
-				// Success or client error (deterministic) -> Save response
+			if rec.statusCode >= 200 && rec.statusCode < 300 {
+				// Only cache successful 2xx responses
 				err = repo.SaveResponse(context.Background(), idempotencyKey, userID, rec.statusCode, rec.body.Bytes())
 				if err != nil {
 					logger.Logger.Errorf("Failed to save idempotency response for key %s: %v", idempotencyKey, err)
 				}
 			} else {
-				// Server error (5xx) -> Mark as failed to allow future retry
+				// Errors (4xx client/auth/validation errors or 5xx server errors) -> Mark as failed to release lock & allow clean retries
 				_ = repo.MarkFailed(context.Background(), idempotencyKey, userID)
 			}
 		})

@@ -9,6 +9,8 @@ import { Account, TransferReceipt } from "@/lib/types";
 import { getAccountMeta, COLOR_PRESETS } from "@/lib/accountMeta";
 import ReceiptModal from "@/components/ReceiptModal";
 import TransferConfirmModal from "@/components/TransferConfirmModal";
+import KeypadPinModal from "@/components/KeypadPinModal";
+import Link from "next/link";
 import {
   ArrowLeftRight,
   Send,
@@ -20,6 +22,9 @@ import {
   XCircle,
   User,
   ShieldCheck,
+  ShieldAlert,
+  Lock,
+  ArrowRight,
   X,
 } from "lucide-react";
 
@@ -37,6 +42,11 @@ export default function TransferPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<TransferReceipt | null>(null);
+
+  // PIN Verification State
+  const [showPinModal, setShowPinModal] = useState<boolean>(false);
+  const [pinLoading, setPinLoading] = useState<boolean>(false);
+  const [pinError, setPinError] = useState<string | null>(null);
 
   // Real-time Recipient Verification State (Triggers ONLY upon full 10 digits)
   const [recipientAccount, setRecipientAccount] = useState<Account | null>(null);
@@ -166,10 +176,21 @@ export default function TransferPage() {
     setShowConfirmModal(true);
   };
 
-  const handleExecuteTransfer = async () => {
+  const handleProceedToPin = () => {
+    setShowConfirmModal(false);
+    setPinError(null);
+    setShowPinModal(true);
+  };
+
+  const handleExecuteTransferWithPin = async (enteredPin: string) => {
     if (!selectedSourceAccount || !recipientAccount) return;
 
-    setLoading(true);
+    setPinLoading(true);
+    setPinError(null);
+
+    // Generate fresh idempotency key per PIN submission attempt
+    const freshIdempotencyKey = generateUUID();
+    setIdempotencyKey(freshIdempotencyKey);
 
     try {
       const res = await api.transactions.transfer(
@@ -179,29 +200,28 @@ export default function TransferPage() {
           amount: satangAmount,
           currency: selectedSourceAccount.currency,
           description: description || "Peer-to-Peer Transfer",
+          pin: enteredPin,
         },
-        idempotencyKey
+        freshIdempotencyKey
       );
 
       if (res.error) {
-        setError(res.error);
+        setPinError(res.error);
         showToast(res.error, "error");
-        setShowConfirmModal(false);
       } else if (res.data) {
-        setShowConfirmModal(false);
+        setShowPinModal(false);
         setReceiptSenderAccount(selectedSourceAccount);
         setReceiptReceiverAccount(recipientAccount);
         setReceipt(res.data);
-        showToast("Transfer executed successfully!", "success");
+        showToast("Transfer authorized & executed successfully!", "success");
         await refreshData();
         resetForm();
       }
     } catch (err: any) {
-      setError(err.message || "Transfer failed");
+      setPinError(err.message || "Transfer authorization failed");
       showToast(err.message || "Transfer failed", "error");
-      setShowConfirmModal(false);
     } finally {
-      setLoading(false);
+      setPinLoading(false);
     }
   };
 
@@ -209,6 +229,33 @@ export default function TransferPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in pb-12">
+      {/* Unconfigured PIN Security Warning Banner */}
+      {user && user.has_pin === false && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-3xl border border-amber-300 dark:border-amber-800/80 bg-amber-50/90 dark:bg-amber-950/40 p-4 sm:p-5 text-xs text-amber-900 dark:text-amber-200 shadow-sm animate-slide-up">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 shrink-0 font-bold">
+              <ShieldAlert className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="font-bold text-slate-900 dark:text-white">
+                Transaction PIN Required
+              </div>
+              <div className="text-slate-600 dark:text-slate-300 mt-0.5">
+                You must configure a 6-digit transaction PIN in Settings before transferring funds.
+              </div>
+            </div>
+          </div>
+
+          <Link
+            href="/settings"
+            className="flex items-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 text-xs transition shadow-sm shrink-0 active:scale-95"
+          >
+            <span>Set up PIN</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      )}
+
       {/* Header */}
       <div className="text-center space-y-1.5">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm">
@@ -563,7 +610,22 @@ export default function TransferPage() {
         description={description}
         loading={loading}
         onClose={() => setShowConfirmModal(false)}
-        onConfirm={handleExecuteTransfer}
+        onConfirm={handleProceedToPin}
+      />
+
+      {/* 6-Digit Transaction PIN Entry Keypad Modal */}
+      <KeypadPinModal
+        isOpen={showPinModal}
+        loading={pinLoading}
+        error={pinError}
+        onClearError={() => setPinError(null)}
+        title="Authorize Transfer with PIN"
+        subtitle={`Transferring ${formatMoney(satangAmount, selectedSourceAccount?.currency || "THB")} to ${recipientAccount?.account_holder_name || `Account #${recipientAccount?.id}`}`}
+        onClose={() => {
+          setShowPinModal(false);
+          setPinError(null);
+        }}
+        onSubmit={handleExecuteTransferWithPin}
       />
 
       {/* Official Receipt Slip Modal */}
