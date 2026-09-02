@@ -1,0 +1,29 @@
+meta {
+  name: 03 - Set PIN
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/user/pin
+  body: json
+  auth: none
+}
+
+headers {
+  ~Cookie: access_token={{access_token}}
+}
+
+body:json {
+  {
+    "password": "{{e2e_password}}",
+    "pin": "{{e2e_pin}}",
+    "confirm_pin": "{{e2e_pin}}"
+  }
+}
+
+tests {
+  test("should set 6-digit transaction PIN", function() {
+    expect([200, 201]).to.include(res.getStatus());
+  });
+}

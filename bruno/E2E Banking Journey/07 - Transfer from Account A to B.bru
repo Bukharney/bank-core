@@ -1,0 +1,38 @@
+meta {
+  name: 07 - Transfer from Account A to B
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/transaction/transfer
+  body: json
+  auth: none
+}
+
+script:pre-request {
+  const crypto = require("crypto");
+  bru.setVar("idempotency_key", crypto.randomUUID());
+}
+
+headers {
+  X-Idempotency-Key: {{idempotency_key}}
+  ~Cookie: access_token={{access_token}}
+}
+
+body:json {
+  {
+    "sender_account_id": {{account_a_id}},
+    "receiver_account_id": {{account_b_id}},
+    "amount": 150000,
+    "currency": "THB",
+    "description": "E2E Internal Transfer",
+    "pin": "{{e2e_pin}}"
+  }
+}
+
+tests {
+  test("should transfer funds from Account A to B", function() {
+    expect([200, 201]).to.include(res.getStatus());
+  });
+}

@@ -10,6 +10,8 @@
     "dev:atm": "cd atm && go run main.go",
     "dev:frontend": "cd frontend && pnpm dev",
     "test": "go test ./internal/... -v",
-    "e2e": "powershell -ExecutionPolicy Bypass -File ./test_e2e.ps1"
+    "e2e": "powershell -ExecutionPolicy Bypass -File ./test_e2e.ps1",
+    "test:bruno": "npx @usebruno/cli run bruno --env local",
+    "test:bruno:e2e": "npx @usebruno/cli run \"bruno/E2E Banking Journey\" --env local"
   }
 }

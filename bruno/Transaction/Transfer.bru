@@ -1,0 +1,33 @@
+meta {
+  name: Transfer
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/transaction/transfer
+  body: json
+  auth: none
+}
+
+headers {
+  X-Idempotency-Key: {{idempotency_key}}
+  ~Cookie: access_token={{access_token}}
+}
+
+body:json {
+  {
+    "sender_account_id": {{account_id}},
+    "receiver_account_id": {{receiver_account_id}},
+    "amount": 25000,
+    "currency": "THB",
+    "description": "Transfer via Bruno",
+    "pin": "{{test_pin}}"
+  }
+}
+
+tests {
+  test("should transfer funds between accounts", function() {
+    expect([200, 201]).to.include(res.getStatus());
+  });
+}

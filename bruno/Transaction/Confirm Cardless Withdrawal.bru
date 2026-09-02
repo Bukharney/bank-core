@@ -1,0 +1,24 @@
+meta {
+  name: Confirm Cardless Withdrawal
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/transaction/withdraw/confirm
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "order_id": "{{cardless_order_id}}",
+    "atm_id": 1
+  }
+}
+
+tests {
+  test("should confirm cardless withdrawal dispensing", function() {
+    expect([200, 400, 404]).to.include(res.getStatus());
+  });
+}

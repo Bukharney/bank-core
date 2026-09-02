@@ -1,0 +1,22 @@
+meta {
+  name: Get Current User (Me)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/auth/me
+  body: none
+  auth: none
+}
+
+headers {
+  ~Cookie: access_token={{access_token}}
+}
+
+tests {
+  test("should return current user profile", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().id).to.be.a('string');
+  });
+}

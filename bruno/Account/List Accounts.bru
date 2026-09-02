@@ -1,0 +1,22 @@
+meta {
+  name: List Accounts
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/account/
+  body: none
+  auth: none
+}
+
+headers {
+  ~Cookie: access_token={{access_token}}
+}
+
+tests {
+  test("should return list of user accounts", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.be.an('array');
+  });
+}

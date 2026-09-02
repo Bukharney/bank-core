@@ -1,0 +1,37 @@
+meta {
+  name: 06 - Deposit into Account A
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/transaction/deposit
+  body: json
+  auth: none
+}
+
+script:pre-request {
+  const crypto = require("crypto");
+  bru.setVar("idempotency_key", crypto.randomUUID());
+}
+
+headers {
+  X-Idempotency-Key: {{idempotency_key}}
+  ~Cookie: access_token={{access_token}}
+}
+
+body:json {
+  {
+    "account_id": {{account_a_id}},
+    "amount": 500000,
+    "currency": "THB",
+    "deposit_ref": "E2E-DEP-001",
+    "description": "Initial E2E Test Deposit"
+  }
+}
+
+tests {
+  test("should deposit funds into Account A", function() {
+    expect([200, 201]).to.include(res.getStatus());
+  });
+}

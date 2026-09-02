@@ -1,0 +1,38 @@
+meta {
+  name: 01 - Register User
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/user/register
+  body: json
+  auth: none
+}
+
+script:pre-request {
+  const timestamp = Date.now();
+  const username = "e2e_user_" + timestamp.toString().slice(-6);
+  const email = "e2e_" + timestamp + "@bankcore.test";
+  bru.setVar("e2e_username", username);
+  bru.setVar("e2e_email", email);
+  bru.setVar("e2e_password", "Password123!");
+  bru.setVar("e2e_pin", "889900");
+}
+
+body:json {
+  {
+    "username": "{{e2e_username}}",
+    "email": "{{e2e_email}}",
+    "password": "{{e2e_password}}",
+    "first_name": "E2E",
+    "last_name": "Tester",
+    "phone_number": "0899999999"
+  }
+}
+
+tests {
+  test("should register a new E2E test user", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+}

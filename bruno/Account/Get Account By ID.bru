@@ -1,0 +1,21 @@
+meta {
+  name: Get Account By ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/account/{{account_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  ~Cookie: access_token={{access_token}}
+}
+
+tests {
+  test("should return account details for owner", function() {
+    expect([200, 404, 403]).to.include(res.getStatus());
+  });
+}

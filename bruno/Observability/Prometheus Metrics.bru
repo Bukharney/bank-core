@@ -1,0 +1,17 @@
+meta {
+  name: Prometheus Metrics
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/metrics
+  body: none
+  auth: none
+}
+
+tests {
+  test("should return prometheus metrics", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

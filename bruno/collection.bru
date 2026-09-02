@@ -1,0 +1,11 @@
+script:pre-request {
+  // Auto-generate fresh UUID for X-Idempotency-Key if not set
+  if (!bru.getVar("idempotency_key")) {
+    const crypto = require("crypto");
+    bru.setVar("idempotency_key", crypto.randomUUID());
+  }
+}
+
+headers {
+  ~Cookie: access_token={{access_token}}
+}

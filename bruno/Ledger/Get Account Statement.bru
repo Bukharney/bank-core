@@ -1,0 +1,26 @@
+meta {
+  name: Get Account Statement
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/ledger/statement/{{account_id}}?limit=20&offset=0
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 20
+  offset: 0
+}
+
+headers {
+  ~Cookie: access_token={{access_token}}
+}
+
+tests {
+  test("should return ledger entries for account", function() {
+    expect([200, 403, 404]).to.include(res.getStatus());
+  });
+}

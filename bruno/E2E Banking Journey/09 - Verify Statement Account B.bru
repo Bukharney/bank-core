@@ -1,0 +1,28 @@
+meta {
+  name: 09 - Verify Statement Account B
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/ledger/statement/{{account_b_id}}?limit=20&offset=0
+  body: none
+  auth: none
+}
+
+params:query {
+  limit: 20
+  offset: 0
+}
+
+headers {
+  ~Cookie: access_token={{access_token}}
+}
+
+tests {
+  test("should return ledger statement for Account B", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.be.an('array');
+    expect(res.getBody().length).to.be.greaterThan(0);
+  });
+}

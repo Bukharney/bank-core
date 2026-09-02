@@ -1,0 +1,36 @@
+meta {
+  name: 04 - Create Account A
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/account/create
+  body: json
+  auth: none
+}
+
+headers {
+  ~Cookie: access_token={{access_token}}
+}
+
+body:json {
+  {
+    "account_type": "SAVINGS",
+    "currency": "THB"
+  }
+}
+
+script:post-response {
+  if (res.status === 201 && res.body) {
+    bru.setVar("account_a_id", res.body.id);
+    bru.setVar("account_a_number", res.body.account_number);
+  }
+}
+
+tests {
+  test("should create Account A", function() {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody().id).to.be.a('number');
+  });
+}

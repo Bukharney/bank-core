@@ -1,0 +1,32 @@
+meta {
+  name: Deposit
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/transaction/deposit
+  body: json
+  auth: none
+}
+
+headers {
+  X-Idempotency-Key: {{idempotency_key}}
+  ~Cookie: access_token={{access_token}}
+}
+
+body:json {
+  {
+    "account_id": {{account_id}},
+    "amount": 100000,
+    "currency": "THB",
+    "deposit_ref": "DEP-BRUNO-001",
+    "description": "Deposit via Bruno"
+  }
+}
+
+tests {
+  test("should deposit funds successfully", function() {
+    expect([200, 201]).to.include(res.getStatus());
+  });
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Logout
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/auth/logout
+  body: none
+  auth: none
+}
+
+headers {
+  ~Cookie: refresh_token={{refresh_token}}
+}
+
+tests {
+  test("should logout successfully", function() {
+    expect([200, 204]).to.include(res.getStatus());
+  });
+}

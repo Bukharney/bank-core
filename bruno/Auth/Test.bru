@@ -1,0 +1,17 @@
+meta {
+  name: Auth Test Ping
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/auth/test
+  body: none
+  auth: none
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

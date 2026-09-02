@@ -1,0 +1,44 @@
+meta {
+  name: Request Cardless Withdrawal
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/transaction/withdraw/request
+  body: json
+  auth: none
+}
+
+headers {
+  X-Idempotency-Key: {{idempotency_key}}
+  ~Cookie: access_token={{access_token}}
+}
+
+body:json {
+  {
+    "account_id": {{account_id}},
+    "amount": 20000,
+    "currency": "THB",
+    "atm_id": 1,
+    "phone_number": "{{test_phone}}",
+    "pin": "{{test_pin}}"
+  }
+}
+
+script:post-response {
+  if (res.status === 200 && res.body) {
+    if (res.body.code) {
+      bru.setVar("cardless_code", res.body.code);
+    }
+    if (res.body.order_id) {
+      bru.setVar("cardless_order_id", res.body.order_id);
+    }
+  }
+}
+
+tests {
+  test("should request cardless withdrawal ticket", function() {
+    expect([200, 201]).to.include(res.getStatus());
+  });
+}

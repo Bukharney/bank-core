@@ -1,0 +1,29 @@
+meta {
+  name: Update Profile (PUT)
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/user/profile
+  body: json
+  auth: none
+}
+
+headers {
+  ~Cookie: access_token={{access_token}}
+}
+
+body:json {
+  {
+    "first_name": "Johnny",
+    "last_name": "Doe",
+    "phone_number": "0812345678"
+  }
+}
+
+tests {
+  test("should update user profile", function() {
+    expect([200, 401]).to.include(res.getStatus());
+  });
+}

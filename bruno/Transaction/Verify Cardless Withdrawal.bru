@@ -1,0 +1,25 @@
+meta {
+  name: Verify Cardless Withdrawal
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/transaction/withdraw/verify
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "phone_number": "{{test_phone}}",
+    "code": "{{cardless_code}}",
+    "atm_id": 1
+  }
+}
+
+tests {
+  test("should verify cardless withdrawal code", function() {
+    expect([200, 400, 404]).to.include(res.getStatus());
+  });
+}

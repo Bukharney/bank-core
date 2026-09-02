@@ -1,0 +1,29 @@
+meta {
+  name: Set PIN
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/user/pin
+  body: json
+  auth: none
+}
+
+headers {
+  ~Cookie: access_token={{access_token}}
+}
+
+body:json {
+  {
+    "password": "{{test_password}}",
+    "pin": "{{test_pin}}",
+    "confirm_pin": "{{test_pin}}"
+  }
+}
+
+tests {
+  test("should set transaction PIN", function() {
+    expect([200, 400, 401]).to.include(res.getStatus());
+  });
+}

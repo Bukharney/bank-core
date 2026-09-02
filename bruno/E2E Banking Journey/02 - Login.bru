@@ -1,0 +1,38 @@
+meta {
+  name: 02 - Login
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{e2e_email}}",
+    "password": "{{e2e_password}}"
+  }
+}
+
+script:post-response {
+  if (res.status === 200 && res.body) {
+    if (res.body.access_token) {
+      bru.setVar("access_token", res.body.access_token);
+      bru.setEnvVar("access_token", res.body.access_token);
+    }
+    if (res.body.refresh_token) {
+      bru.setVar("refresh_token", res.body.refresh_token);
+      bru.setEnvVar("refresh_token", res.body.refresh_token);
+    }
+  }
+}
+
+tests {
+  test("should login and obtain JWT access token", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody().access_token).to.be.a('string');
+  });
+}
