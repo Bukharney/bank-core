@@ -10,3 +10,10 @@ scrape_configs:
         labels:
           app: "bank-core-api"
           env: "development"
+
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels:
+          app: "container-metrics"
+          env: "development"
