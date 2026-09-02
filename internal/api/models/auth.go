@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type AuthUsecase interface {
 	Login(user *UserCredentials) (*LoginResponse, error)
 	Logout(refreshToken string) error
@@ -8,7 +10,9 @@ type AuthUsecase interface {
 }
 
 type AuthRepository interface {
-	UpdateRefreshToken(userId string, refreshToken string) error
+	UpdateRefreshToken(userId string, refreshToken string, ttl time.Duration) error
+	GetRefreshToken(userId string) (string, error)
+	RevokeRefreshToken(userId string) error
 }
 
 type UserCredentials struct {

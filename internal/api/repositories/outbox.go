@@ -58,19 +58,30 @@ func (r *OutboxRepository) InsertOutboxEventTx(tx *sqlx.Tx, event *models.Outbox
 	return err
 }
 
-// FetchPendingEvents locks a batch of events using FOR UPDATE SKIP LOCKED
+// FetchPendingEvents atomically locks and claims a batch of events by updating their status to PROCESSING
 func (r *OutboxRepository) FetchPendingEvents(ctx context.Context, batchSize int) ([]*models.OutboxEvent, error) {
 	if batchSize <= 0 {
 		batchSize = 20
 	}
 	var events []*models.OutboxEvent
 	query := `
-		SELECT id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, max_retries, last_error, scheduled_at, processed_at, created_at
-		FROM outbox_events
-		WHERE status IN ('PENDING', 'FAILED') AND scheduled_at <= NOW() AND retry_count < max_retries
-		ORDER BY scheduled_at ASC
-		LIMIT $1
-		FOR UPDATE SKIP LOCKED
+		WITH claimable AS (
+			SELECT id
+			FROM outbox_events
+			WHERE (
+				(status IN ('PENDING', 'FAILED') AND scheduled_at <= NOW() AND retry_count < max_retries)
+				OR (status = 'PROCESSING' AND scheduled_at <= NOW() - INTERVAL '2 minutes')
+			)
+			ORDER BY scheduled_at ASC
+			LIMIT $1
+			FOR UPDATE SKIP LOCKED
+		)
+		UPDATE outbox_events e
+		SET status = 'PROCESSING',
+		    scheduled_at = NOW()
+		FROM claimable c
+		WHERE e.id = c.id
+		RETURNING e.id, e.aggregate_type, e.aggregate_id, e.event_type, e.payload, e.status, e.retry_count, e.max_retries, e.last_error, e.scheduled_at, e.processed_at, e.created_at
 	`
 	err := r.Db.SelectContext(ctx, &events, query, batchSize)
 	if err != nil {

@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/bukharney/bank-core/internal/api/models"
 	"github.com/bukharney/bank-core/internal/config"
@@ -40,7 +41,7 @@ func (u *AuthUsecase) Login(user *models.UserCredentials) (*models.LoginResponse
 		return nil, err
 	}
 
-	err = u.Repo.UpdateRefreshToken(dbUser.ID.String(), refreshToken)
+	err = u.Repo.UpdateRefreshToken(dbUser.ID.String(), refreshToken, 7*24*time.Hour)
 	if err != nil {
 		return nil, err
 	}
@@ -62,13 +63,19 @@ func (u *AuthUsecase) Logout(refreshToken string) error {
 		return fmt.Errorf("invalid refresh token")
 	}
 
-	return u.Repo.UpdateRefreshToken(userId, "")
+	return u.Repo.RevokeRefreshToken(userId)
 }
 
 func (u *AuthUsecase) RefreshToken(refreshToken string) (*models.LoginResponse, error) {
 	userIdStr, err := utils.ParseToken(u.Cfg, refreshToken, true)
 	if err != nil {
 		return nil, fmt.Errorf("invalid refresh token")
+	}
+
+	// Verify token is active in Redis and has not been revoked/rotated
+	storedToken, err := u.Repo.GetRefreshToken(userIdStr)
+	if err != nil || storedToken == "" || storedToken != refreshToken {
+		return nil, fmt.Errorf("refresh token has been revoked or expired")
 	}
 
 	userID, err := uuid.Parse(userIdStr)
@@ -86,7 +93,7 @@ func (u *AuthUsecase) RefreshToken(refreshToken string) (*models.LoginResponse, 
 		return nil, err
 	}
 
-	_ = u.Repo.UpdateRefreshToken(userIdStr, newRefreshToken)
+	_ = u.Repo.UpdateRefreshToken(userIdStr, newRefreshToken, 7*24*time.Hour)
 
 	return &models.LoginResponse{
 		AccessToken:  accessToken,

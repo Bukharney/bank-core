@@ -18,6 +18,8 @@ var unprotectedRoutes = map[string]bool{
 	"/metrics":                      true,
 	"/user/register":                true,
 	"/auth/login":                   true,
+	"/auth/refresh":                 true,
+	"/auth/logout":                  true,
 	"/auth/test":                    true,
 	"/transaction/withdraw/verify":  true,
 	"/transaction/withdraw/confirm": true,
@@ -42,7 +44,7 @@ func (w *statusResponseWriter) Write(b []byte) (int, error) {
 
 // TimeoutMiddleware adds a timeout to the request
 func TimeoutMiddleware(next http.Handler) http.Handler {
-	timeout := 1
+	timeout := 30
 	return http.TimeoutHandler(next, time.Duration(timeout)*time.Second, "Request timed out")
 }
 

@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { api, generateUUID } from "@/lib/api";
 import { formatAccountNumber, formatAccountInput, formatMoney, thbToSatang } from "@/lib/currency";
-import { Account, TransferReceipt } from "@/lib/types";
+import { Account, AccountPreview, TransferReceipt } from "@/lib/types";
 import { getAccountMeta, COLOR_PRESETS } from "@/lib/accountMeta";
 import ReceiptModal from "@/components/ReceiptModal";
 import TransferConfirmModal from "@/components/TransferConfirmModal";
@@ -49,14 +49,14 @@ export default function TransferPage() {
   const [pinError, setPinError] = useState<string | null>(null);
 
   // Real-time Recipient Verification State (Triggers ONLY upon full 10 digits)
-  const [recipientAccount, setRecipientAccount] = useState<Account | null>(null);
+  const [recipientAccount, setRecipientAccount] = useState<AccountPreview | null>(null);
   const [verifyingRecipient, setVerifyingRecipient] = useState<boolean>(false);
   const [recipientError, setRecipientError] = useState<string | null>(null);
 
   // Transfer Confirmation Dialog State
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [receiptSenderAccount, setReceiptSenderAccount] = useState<Account | null>(null);
-  const [receiptReceiverAccount, setReceiptReceiverAccount] = useState<Account | null>(null);
+  const [receiptReceiverAccount, setReceiptReceiverAccount] = useState<Account | AccountPreview | null>(null);
 
   useEffect(() => {
     setIdempotencyKey(generateUUID());
@@ -103,7 +103,7 @@ export default function TransferPage() {
 
     const timer = setTimeout(async () => {
       try {
-        const res = await api.accounts.getById(cleanDigits);
+        const res = await api.accounts.getPreview(cleanDigits);
         if (res.data && res.data.id) {
           if (res.data.status !== "ACTIVE") {
             setRecipientAccount(null);

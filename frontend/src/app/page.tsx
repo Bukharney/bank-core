@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { api, generateUUID } from "@/lib/api";
 import { formatAccountNumber, formatAccountInput, formatMoney, formatDate, thbToSatang } from "@/lib/currency";
-import { Account, LedgerEntry, TransferReceipt } from "@/lib/types";
+import { Account, AccountPreview, LedgerEntry, TransferReceipt } from "@/lib/types";
 import { getAccountMeta, COLOR_PRESETS } from "@/lib/accountMeta";
 import ActionModal from "@/components/ActionModal";
 import ReceiptModal from "@/components/ReceiptModal";
@@ -78,8 +78,8 @@ export default function DashboardPage() {
   const [quickTransferring, setQuickTransferring] = useState<boolean>(false);
   const [quickReceipt, setQuickReceipt] = useState<TransferReceipt | null>(null);
   const [receiptSenderAccount, setReceiptSenderAccount] = useState<Account | null>(null);
-  const [receiptReceiverAccount, setReceiptReceiverAccount] = useState<Account | null>(null);
-  const [quickRecipientAccount, setQuickRecipientAccount] = useState<Account | null>(null);
+  const [receiptReceiverAccount, setReceiptReceiverAccount] = useState<Account | AccountPreview | null>(null);
+  const [quickRecipientAccount, setQuickRecipientAccount] = useState<AccountPreview | null>(null);
   const [quickVerifying, setQuickVerifying] = useState<boolean>(false);
   const [quickRecipientError, setQuickRecipientError] = useState<string | null>(null);
   const [showQuickConfirmModal, setShowQuickConfirmModal] = useState<boolean>(false);
@@ -127,7 +127,7 @@ export default function DashboardPage() {
 
     const timer = setTimeout(async () => {
       try {
-        const res = await api.accounts.getById(cleanParam);
+        const res = await api.accounts.getPreview(cleanParam);
         if (res.data && res.data.id && res.data.status === "ACTIVE") {
           setQuickRecipientAccount(res.data);
           setQuickRecipientError(null);

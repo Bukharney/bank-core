@@ -39,7 +39,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "rate(process_cpu_seconds_total[1m])",
+          "expr": "rate(process_cpu_seconds_total{job=\"bank-core\"}[1m])",
           "legendFormat": "Bank Core CPU Core Usage",
           "refId": "A"
         }
@@ -107,19 +107,19 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "process_resident_memory_bytes",
+          "expr": "process_resident_memory_bytes{job=\"bank-core\"}",
           "legendFormat": "Physical RAM (RSS)",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "go_memstats_alloc_bytes",
+          "expr": "go_memstats_alloc_bytes{job=\"bank-core\"}",
           "legendFormat": "Go Heap Allocated",
           "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "go_memstats_sys_bytes",
+          "expr": "go_memstats_sys_bytes{job=\"bank-core\"}",
           "legendFormat": "Go Total System Memory (Sys)",
           "refId": "C"
         }
@@ -187,13 +187,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "go_goroutines",
+          "expr": "go_goroutines{job=\"bank-core\"}",
           "legendFormat": "Active Goroutines",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "go_threads",
+          "expr": "go_threads{job=\"bank-core\"}",
           "legendFormat": "OS Threads",
           "refId": "B"
         }
@@ -223,13 +223,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "go_gc_duration_seconds{quantile=\"0.99\"}",
+          "expr": "go_gc_duration_seconds{job=\"bank-core\", quantile=\"0.99\"}",
           "legendFormat": "GC P99 Pause",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "go_gc_duration_seconds{quantile=\"0.5\"}",
+          "expr": "go_gc_duration_seconds{job=\"bank-core\", quantile=\"0.5\"}",
           "legendFormat": "GC P50 Pause",
           "refId": "B"
         }
@@ -259,13 +259,13 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "process_open_fds",
+          "expr": "process_open_fds{job=\"bank-core\"}",
           "legendFormat": "Open Sockets / FDs",
           "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
-          "expr": "process_max_fds",
+          "expr": "process_max_fds{job=\"bank-core\"}",
           "legendFormat": "Max System FD Limit",
           "refId": "B"
         }

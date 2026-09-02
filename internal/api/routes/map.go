@@ -40,7 +40,7 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	authHandler := controllers.NewAuthController(config, authUseCase)
 	accountHandler := controllers.NewAccountController(config, accountUseCase)
 	transactionHandler := controllers.NewTransactionController(config, transferUseCase)
-	ledgerHandler := controllers.NewLedgerController(config, ledgerUseCase)
+	ledgerHandler := controllers.NewLedgerController(config, ledgerUseCase, accountRepository)
 
 	// Idempotency Middleware for mutating operations
 	idempotencyMiddleware := middleware.IdempotencyMiddleware(idempotencyRepository, config, 30*time.Second)
@@ -63,6 +63,7 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 
 	accountRouter := http.NewServeMux()
 	accountRouter.HandleFunc("POST /create", accountHandler.CreateAccountHandler)
+	accountRouter.HandleFunc("GET /preview/{id}", accountHandler.GetAccountPreviewHandler)
 	accountRouter.HandleFunc("GET /{id}", accountHandler.GetAccountByIDHandler)
 	accountRouter.HandleFunc("GET /", accountHandler.GetAccountHandler)
 	accountRouter.HandleFunc("GET /{$}", accountHandler.GetAccountHandler)

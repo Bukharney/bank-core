@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -12,19 +13,33 @@ import (
 )
 
 type LedgerController struct {
-	Cfg     *config.Config
-	Usecase models.LedgerUsecase
+	Cfg         *config.Config
+	Usecase     models.LedgerUsecase
+	AccountRepo models.AccountRepository
 }
 
-func NewLedgerController(cfg *config.Config, usecase models.LedgerUsecase) *LedgerController {
+func NewLedgerController(cfg *config.Config, usecase models.LedgerUsecase, accountRepo models.AccountRepository) *LedgerController {
 	return &LedgerController{
-		Cfg:     cfg,
-		Usecase: usecase,
+		Cfg:         cfg,
+		Usecase:     usecase,
+		AccountRepo: accountRepo,
 	}
 }
 
 // GetAccountStatementHandler returns ledger statement / postings for an account
 func (c *LedgerController) GetAccountStatementHandler(w http.ResponseWriter, r *http.Request) {
+	userIdStr, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
+	if err != nil {
+		responses.Unauthorized(w, err)
+		return
+	}
+
+	userID, err := uuid.Parse(userIdStr)
+	if err != nil {
+		responses.Unauthorized(w, err)
+		return
+	}
+
 	accountIdStr, err := utils.GetIDFromRequest(r, "id")
 	if err != nil {
 		responses.BadRequest(w, err)
@@ -34,6 +49,17 @@ func (c *LedgerController) GetAccountStatementHandler(w http.ResponseWriter, r *
 	accountID, err := utils.StringToInt64(accountIdStr)
 	if err != nil {
 		responses.BadRequest(w, err)
+		return
+	}
+
+	// Verify account ownership
+	acc, err := c.AccountRepo.GetAccountByID(accountID)
+	if err != nil || acc == nil {
+		responses.NotFound(w, errors.New("account not found"))
+		return
+	}
+	if acc.UserID != userID {
+		responses.Forbidden(w, errors.New("forbidden: access to this statement is restricted to the account owner"))
 		return
 	}
 

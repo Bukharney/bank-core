@@ -47,6 +47,7 @@ func (m *MockOutboxRepository) FetchPendingEvents(ctx context.Context, batchSize
 	var result []*models.OutboxEvent
 	for _, e := range m.events {
 		if (e.Status == models.OutboxStatusPending || e.Status == models.OutboxStatusFailed) && e.RetryCount < e.MaxRetries {
+			e.Status = models.OutboxStatusProcessing
 			result = append(result, e)
 			if len(result) >= batchSize {
 				break
@@ -75,6 +76,8 @@ func (m *MockOutboxRepository) MarkFailed(ctx context.Context, eventID uuid.UUID
 		e.LastError = &errMsg
 		if e.RetryCount >= e.MaxRetries {
 			e.Status = models.OutboxStatusFailed
+		} else {
+			e.Status = models.OutboxStatusPending
 		}
 	}
 	return nil
@@ -165,8 +168,65 @@ func TestOutboxWorker_ProcessBatch_FailureAndRetry(t *testing.T) {
 	if repo.events[eventID].RetryCount != 1 {
 		t.Fatalf("expected retry_count = 1, got %d", repo.events[eventID].RetryCount)
 	}
+	if repo.events[eventID].Status != models.OutboxStatusPending {
+		t.Fatalf("expected status to be PENDING after retry, got %s", repo.events[eventID].Status)
+	}
 	if repo.events[eventID].LastError == nil || *repo.events[eventID].LastError != "broker connection timeout" {
 		t.Fatalf("expected last_error to be set properly")
+	}
+}
+
+func TestOutboxWorker_ProcessBatch_MaxRetriesExceeded(t *testing.T) {
+	repo := newMockOutboxRepository()
+	pub := &MockPublisher{
+		shouldFail:  true,
+		failMessage: "permanent failure",
+	}
+
+	eventID := uuid.New()
+	event := &models.OutboxEvent{
+		ID:            eventID,
+		AggregateType: "ACCOUNT",
+		AggregateID:   "ACC-1",
+		EventType:     models.EventAccountCreated,
+		Payload:       []byte(`{}`),
+		Status:        models.OutboxStatusPending,
+		RetryCount:    2,
+		MaxRetries:    3,
+	}
+	_ = repo.InsertOutboxEventTx(nil, event)
+
+	outboxWorker := worker.NewOutboxWorker(repo, pub, 100*time.Millisecond, 10)
+	count, err := outboxWorker.ProcessBatch(context.Background())
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 processed event, got %d", count)
+	}
+
+	if repo.events[eventID].RetryCount != 3 {
+		t.Fatalf("expected retry_count = 3, got %d", repo.events[eventID].RetryCount)
+	}
+	if repo.events[eventID].Status != models.OutboxStatusFailed {
+		t.Fatalf("expected status to be FAILED, got %s", repo.events[eventID].Status)
+	}
+}
+
+func TestOutboxWorker_ProcessBatch_EmptyQueue(t *testing.T) {
+	repo := newMockOutboxRepository()
+	pub := &MockPublisher{}
+
+	outboxWorker := worker.NewOutboxWorker(repo, pub, 100*time.Millisecond, 10)
+	count, err := outboxWorker.ProcessBatch(context.Background())
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected 0 processed events, got %d", count)
+	}
+	if len(pub.published) != 0 {
+		t.Fatalf("expected no published events, got %d", len(pub.published))
 	}
 }
 

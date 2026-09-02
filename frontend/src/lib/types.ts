@@ -26,6 +26,15 @@ export interface Account {
   updated_at: string;
 }
 
+export interface AccountPreview {
+  id: number;
+  account_number: string;
+  account_holder_name?: string;
+  currency: string;
+  account_type: "SAVINGS" | "CHECKING" | "SYSTEM_SETTLEMENT" | "INTERNAL";
+  status: "ACTIVE" | "FROZEN" | "CLOSED";
+}
+
 export interface TransferRequest {
   sender_account_id: number;
   receiver_account_id: number;

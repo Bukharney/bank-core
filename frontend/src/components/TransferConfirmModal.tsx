@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Account } from "@/lib/types";
+import { Account, AccountPreview } from "@/lib/types";
 import { formatMoney, formatAccountNumber } from "@/lib/currency";
 import { getAccountMeta } from "@/lib/accountMeta";
 import {
@@ -18,7 +18,7 @@ import {
 interface TransferConfirmModalProps {
   isOpen: boolean;
   senderAccount: Account | null;
-  receiverAccount: Account | null;
+  receiverAccount: Account | AccountPreview | null;
   amountSatang: number;
   description?: string;
   loading: boolean;

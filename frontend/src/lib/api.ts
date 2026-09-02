@@ -1,5 +1,6 @@
 import {
   Account,
+  AccountPreview,
   DepositRequest,
   JournalEntry,
   LedgerEntry,
@@ -121,6 +122,9 @@ export const api = {
     list: () => request<Account[]>("/account", { method: "GET" }),
 
     getById: (id: number | string) => request<Account>(`/account/${id}`, { method: "GET" }),
+
+    getPreview: (accountNumberOrId: string | number) =>
+      request<AccountPreview>(`/account/preview/${accountNumberOrId}`, { method: "GET" }),
 
     create: (
       data: { account_type: string; currency: string },

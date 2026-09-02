@@ -61,6 +61,15 @@ type AccountResponse struct {
 	CreatedAt         time.Time `json:"created_at"`
 }
 
+type AccountPreviewResponse struct {
+	ID                int64  `json:"id"`
+	AccountNumber     string `json:"account_number"`
+	AccountHolderName string `json:"account_holder_name,omitempty"`
+	Currency          string `json:"currency"`
+	AccountType       string `json:"account_type"`
+	Status            string `json:"status"`
+}
+
 type AccountRepository interface {
 	CreateAccount(tx *sqlx.Tx, account *Account) error
 	GetAccountByID(accountID int64) (*Account, error)

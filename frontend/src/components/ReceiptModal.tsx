@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Account, TransferReceipt } from "@/lib/types";
+import { Account, AccountPreview, TransferReceipt } from "@/lib/types";
 import { useToast } from "@/context/ToastContext";
 import { formatMoney, formatDate, formatAccountNumber } from "@/lib/currency";
 import { getAccountMeta } from "@/lib/accountMeta";
@@ -24,7 +24,7 @@ import confetti from "canvas-confetti";
 interface ReceiptModalProps {
   receipt: TransferReceipt | null;
   senderAccount?: Account | null;
-  receiverAccount?: Account | null;
+  receiverAccount?: Account | AccountPreview | null;
   onClose: () => void;
 }
 

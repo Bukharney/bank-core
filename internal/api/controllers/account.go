@@ -85,8 +85,64 @@ func (c *AccountController) GetAccountHandler(w http.ResponseWriter, r *http.Req
 	responses.JSON(w, http.StatusOK, accounts)
 }
 
-// GetAccountByIDHandler handles the get account by ID or Account Number route
+// GetAccountPreviewHandler returns safe public recipient info without disclosing balances
+func (c *AccountController) GetAccountPreviewHandler(w http.ResponseWriter, r *http.Request) {
+	queryParam, err := utils.GetIDFromRequest(r, "id")
+	if err != nil {
+		responses.BadRequest(w, err)
+		return
+	}
+
+	cleanParam := ""
+	for _, ch := range queryParam {
+		if ch >= '0' && ch <= '9' {
+			cleanParam += string(ch)
+		}
+	}
+
+	if cleanParam == "" {
+		responses.BadRequest(w, errors.New("invalid account parameter"))
+		return
+	}
+
+	account, err := c.Usecase.GetAccountByNumber(cleanParam)
+	if err != nil || account == nil {
+		accountID, parseErr := utils.StringToInt64(cleanParam)
+		if parseErr == nil {
+			account, err = c.Usecase.GetAccountByID(accountID)
+		}
+	}
+
+	if err != nil || account == nil {
+		responses.NotFound(w, errors.New("account not found"))
+		return
+	}
+
+	preview := &models.AccountPreviewResponse{
+		ID:                account.ID,
+		AccountNumber:     account.AccountNumber,
+		AccountHolderName: account.AccountHolderName,
+		Currency:          account.Currency,
+		AccountType:       account.AccountType,
+		Status:            account.Status,
+	}
+	responses.JSON(w, http.StatusOK, preview)
+}
+
+// GetAccountByIDHandler handles the get account by ID or Account Number route (restricted to account owner)
 func (c *AccountController) GetAccountByIDHandler(w http.ResponseWriter, r *http.Request) {
+	userIdStr, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
+	if err != nil {
+		responses.Unauthorized(w, err)
+		return
+	}
+
+	userID, err := uuid.Parse(userIdStr)
+	if err != nil {
+		responses.Unauthorized(w, err)
+		return
+	}
+
 	queryParam, err := utils.GetIDFromRequest(r, "id")
 	if err != nil {
 		responses.BadRequest(w, err)
@@ -106,31 +162,33 @@ func (c *AccountController) GetAccountByIDHandler(w http.ResponseWriter, r *http
 		return
 	}
 
+	var account *models.Account
+
 	// Try lookup by numeric ID first if value is small
 	accountID, err := utils.StringToInt64(cleanParam)
 	if err == nil && len(cleanParam) < 9 {
-		account, err := c.Usecase.GetAccountByID(accountID)
-		if err == nil && account != nil {
-			responses.JSON(w, http.StatusOK, account)
-			return
-		}
+		account, _ = c.Usecase.GetAccountByID(accountID)
 	}
 
-	// Try lookup by 10-digit account number
-	account, err := c.Usecase.GetAccountByNumber(cleanParam)
-	if err == nil && account != nil {
-		responses.JSON(w, http.StatusOK, account)
-		return
+	// Try lookup by 10-digit account number if not found yet
+	if account == nil {
+		account, _ = c.Usecase.GetAccountByNumber(cleanParam)
 	}
 
 	// If not found yet and accountID parsed, try ID once more
-	if accountID > 0 {
-		account, err = c.Usecase.GetAccountByID(accountID)
-		if err == nil && account != nil {
-			responses.JSON(w, http.StatusOK, account)
-			return
-		}
+	if account == nil && accountID > 0 {
+		account, _ = c.Usecase.GetAccountByID(accountID)
 	}
 
-	responses.NotFound(w, errors.New("account not found"))
+	if account == nil {
+		responses.NotFound(w, errors.New("account not found"))
+		return
+	}
+
+	if account.UserID != userID {
+		responses.Forbidden(w, errors.New("forbidden: access to account details is restricted to the account owner"))
+		return
+	}
+
+	responses.JSON(w, http.StatusOK, account)
 }

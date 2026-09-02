@@ -33,6 +33,7 @@ func (c *AuthController) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	err := utils.DecodeJSON(r, login)
 	if err != nil {
 		responses.BadRequest(w, err)
+		return
 	}
 
 	err = c.Validate.Struct(login)
