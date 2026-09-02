@@ -29,11 +29,23 @@ import {
 } from "lucide-react";
 
 export default function TransferPage() {
-  const { user, accounts, refreshData } = useAuth();
+  const { user, accounts, activeAccount, refreshData } = useAuth();
   const { showToast } = useToast();
 
-  // Explicit Source Account Selection (Starts as null, no auto-select)
-  const [selectedSourceAccount, setSelectedSourceAccount] = useState<Account | null>(null);
+  // Source Account Selection (Defaults to activeAccount or first account, local to this page)
+  const [selectedSourceAccount, setSelectedSourceAccount] = useState<Account | null>(() => activeAccount || accounts[0] || null);
+
+  // Auto-select on initial load once accounts become available
+  useEffect(() => {
+    if (!selectedSourceAccount && accounts.length > 0) {
+      setSelectedSourceAccount(activeAccount || accounts[0]);
+    } else if (selectedSourceAccount) {
+      const fresh = accounts.find((a) => a.id === selectedSourceAccount.id);
+      if (fresh && (fresh.balance !== selectedSourceAccount.balance || fresh.version !== selectedSourceAccount.version)) {
+        setSelectedSourceAccount(fresh);
+      }
+    }
+  }, [accounts, activeAccount, selectedSourceAccount]);
 
   const [receiverInput, setReceiverInput] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
@@ -114,11 +126,11 @@ export default function TransferPage() {
           }
         } else {
           setRecipientAccount(null);
-          setRecipientError(`Account number "${receiverInput}" not found`);
+          setRecipientError(res.error || `Account number "${receiverInput}" not found`);
         }
       } catch (err: any) {
         setRecipientAccount(null);
-        setRecipientError(`Account number "${receiverInput}" not found`);
+        setRecipientError(err?.message || `Account number "${receiverInput}" not found`);
       } finally {
         setVerifyingRecipient(false);
       }

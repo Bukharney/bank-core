@@ -18,6 +18,7 @@ import (
 	"github.com/bukharney/bank-core/internal/worker"
 )
 
+// Main application entrypoint
 func main() {
 	logger.InitLogger()
 	defer logger.CloseLogger()

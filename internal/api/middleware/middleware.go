@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bukharney/bank-core/internal/config"
@@ -52,7 +53,7 @@ func TimeoutMiddleware(next http.Handler) http.Handler {
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cfg := config.NewConfig()
-		if _, ok := unprotectedRoutes[r.URL.Path]; ok {
+		if _, ok := unprotectedRoutes[r.URL.Path]; ok || strings.HasPrefix(r.URL.Path, "/account/preview/") {
 			next.ServeHTTP(w, r)
 			return
 		}

@@ -65,7 +65,6 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	accountRouter.HandleFunc("POST /create", accountHandler.CreateAccountHandler)
 	accountRouter.HandleFunc("GET /preview/{id}", accountHandler.GetAccountPreviewHandler)
 	accountRouter.HandleFunc("GET /{id}", accountHandler.GetAccountByIDHandler)
-	accountRouter.HandleFunc("GET /", accountHandler.GetAccountHandler)
 	accountRouter.HandleFunc("GET /{$}", accountHandler.GetAccountHandler)
 	handler.Handle("/account/", http.StripPrefix("/account", idempotencyMiddleware(accountRouter)))
 	handler.Handle("/account", idempotencyMiddleware(http.HandlerFunc(accountHandler.GetAccountHandler)))

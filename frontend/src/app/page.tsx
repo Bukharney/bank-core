@@ -113,11 +113,11 @@ export default function DashboardPage() {
           setQuickRecipientError(null);
         } else {
           setQuickRecipientAccount(null);
-          setQuickRecipientError("Account not found");
+          setQuickRecipientError(res.error || "Account not found");
         }
-      } catch {
+      } catch (err: any) {
         setQuickRecipientAccount(null);
-        setQuickRecipientError("Account not found");
+        setQuickRecipientError(err?.message || "Account not found");
       } finally {
         setQuickVerifying(false);
       }

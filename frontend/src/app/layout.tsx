@@ -5,7 +5,9 @@ import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ToastProvider } from "@/context/ToastContext";
+import { SidebarProvider } from "@/context/SidebarContext";
 import Navbar from "@/components/Navbar";
+import Sidebar from "@/components/Sidebar";
 
 export const metadata: Metadata = {
   title: "Bank Core | Next-Gen Core Banking Platform",
@@ -20,14 +22,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
-      <body className="min-h-screen bg-[#f8fafc] dark:bg-[#070b14] text-slate-900 dark:text-slate-100 selection:bg-slate-900 dark:selection:bg-slate-100 selection:text-white dark:selection:text-slate-900 flex flex-col font-sans antialiased transition-colors duration-200">
+      <body className="min-h-screen bg-[#f8fafc] dark:bg-[#070b14] text-slate-900 dark:text-slate-100 selection:bg-slate-900 dark:selection:bg-slate-100 selection:text-white dark:selection:text-slate-900 flex font-sans antialiased transition-colors duration-200">
         <ThemeProvider>
           <ToastProvider>
             <AuthProvider>
-              <Navbar />
-              <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
-                {children}
-              </main>
+              <SidebarProvider>
+                <div className="flex min-h-screen w-full">
+                  <Sidebar />
+                  <div className="flex flex-1 flex-col min-w-0">
+                    <Navbar />
+                    <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+                      {children}
+                    </main>
+                  </div>
+                </div>
+              </SidebarProvider>
             </AuthProvider>
           </ToastProvider>
         </ThemeProvider>
