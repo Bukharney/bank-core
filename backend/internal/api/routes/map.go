@@ -31,7 +31,7 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	// Usecases
 	userUseCase := usecases.NewUserUsecase(config, userRepository, accountRepository)
 	authUseCase := usecases.NewAuthUsecase(config, authRepository, userRepository)
-	accountUseCase := usecases.NewAccountUsecase(config, accountRepository)
+	accountUseCase := usecases.NewAccountUsecase(config, accountRepository, userRepository)
 	ledgerUseCase := usecases.NewLedgerUsecase(config, pg, ledgerRepository, accountRepository)
 	transferUseCase := usecases.NewTransferUsecase(config, pg, accountRepository, userRepository, ledgerRepository, outboxRepository, atmClient)
 
@@ -53,6 +53,8 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	transactionRouter.HandleFunc("POST /withdraw/request", transactionHandler.RequestCardlessWithdrawalHandler)
 	transactionRouter.HandleFunc("POST /withdraw/verify", transactionHandler.VerifyCardlessWithdrawalHandler)
 	transactionRouter.HandleFunc("POST /withdraw/confirm", transactionHandler.ConfirmCardlessWithdrawalHandler)
+	transactionRouter.HandleFunc("POST /atm/deposit/lookup", transactionHandler.ATMDepositLookupHandler)
+	transactionRouter.HandleFunc("POST /atm/deposit", transactionHandler.ATMDepositHandler)
 	handler.Handle("/transaction/", http.StripPrefix("/transaction", idempotencyMiddleware(transactionRouter)))
 
 	// Ledger routes
@@ -63,6 +65,8 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 
 	accountRouter := http.NewServeMux()
 	accountRouter.HandleFunc("POST /create", accountHandler.CreateAccountHandler)
+	accountRouter.HandleFunc("POST /link-phone", accountHandler.LinkPhoneHandler)
+	accountRouter.HandleFunc("POST /unlink-phone", accountHandler.UnlinkPhoneHandler)
 	accountRouter.HandleFunc("GET /preview/{id}", accountHandler.GetAccountPreviewHandler)
 	accountRouter.HandleFunc("GET /{id}", accountHandler.GetAccountByIDHandler)
 	accountRouter.HandleFunc("GET /{$}", accountHandler.GetAccountHandler)

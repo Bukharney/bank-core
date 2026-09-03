@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { formatDate, formatAccountNumber, formatMoney } from "@/lib/currency";
 import { getAccountMeta, COLOR_PRESETS } from "@/lib/accountMeta";
+import { api } from "@/lib/api";
 import Link from "next/link";
 import {
   User as UserIcon,
@@ -26,10 +27,14 @@ import {
   Info,
   Key,
   ShieldAlert,
+  Zap,
+  Link2,
+  Unlink,
+  Smartphone,
 } from "lucide-react";
 
 export default function SettingsPage() {
-  const { user, accounts, updateProfile, changePassword, setPin, loading } = useAuth();
+  const { user, accounts, updateProfile, changePassword, setPin, loading, refreshData } = useAuth();
   const { showToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<"profile" | "security" | "pin" | "accounts">("profile");
@@ -61,6 +66,13 @@ export default function SettingsPage() {
   const [pinSubmitting, setPinSubmitting] = useState(false);
   const [pinError, setPinError] = useState<string | null>(null);
   const [pinSuccess, setPinSuccess] = useState(false);
+
+  // Phone Linking State
+  const [linkingAccountId, setLinkingAccountId] = useState<number | null>(null);
+  const [phoneLinkSubmitting, setPhoneLinkSubmitting] = useState(false);
+  const [phoneLinkError, setPhoneLinkError] = useState<string | null>(null);
+  const [phoneLinkSuccess, setPhoneLinkSuccess] = useState<string | null>(null);
+
 
   // Populate initial profile values
   useEffect(() => {
@@ -206,6 +218,45 @@ export default function SettingsPage() {
       setPinSubmitting(false);
     }
   };
+
+  const handleLinkPhone = async (accountId: number) => {
+    setLinkingAccountId(accountId);
+    setPhoneLinkSubmitting(true);
+    setPhoneLinkError(null);
+    setPhoneLinkSuccess(null);
+    try {
+      await api.accounts.linkPhone(accountId);
+      setPhoneLinkSuccess("Account connected to phone number successfully!");
+      showToast("Phone deposit account linked!", "success");
+      await refreshData();
+    } catch (err: any) {
+      setPhoneLinkError(err.message || "Failed to link account to phone number.");
+      showToast(err.message || "Error linking account", "error");
+    } finally {
+      setPhoneLinkSubmitting(false);
+      setLinkingAccountId(null);
+    }
+  };
+
+  const handleUnlinkPhone = async (accountId: number) => {
+    setLinkingAccountId(accountId);
+    setPhoneLinkSubmitting(true);
+    setPhoneLinkError(null);
+    setPhoneLinkSuccess(null);
+    try {
+      await api.accounts.unlinkPhone(accountId);
+      setPhoneLinkSuccess("Phone connection removed.");
+      showToast("Phone link disconnected", "success");
+      await refreshData();
+    } catch (err: any) {
+      setPhoneLinkError(err.message || "Failed to unlink account.");
+      showToast(err.message || "Error unlinking account", "error");
+    } finally {
+      setPhoneLinkSubmitting(false);
+      setLinkingAccountId(null);
+    }
+  };
+
 
   const isPasswordLengthValid = newPassword.length >= 8;
   const isPasswordMatch = newPassword.length > 0 && newPassword === confirmPassword;
@@ -816,14 +867,14 @@ export default function SettingsPage() {
           {/* TAB 4: Linked Accounts */}
           {activeTab === "accounts" && (
             <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/60 backdrop-blur-xl p-6 sm:p-8 shadow-sm space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <CreditCard className="h-5 w-5 text-emerald-500" />
                     Linked Banking Accounts
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Overview of your double-entry core ledger accounts.
+                    Manage core ledger accounts and designate your ATM / PromptPay phone deposit account.
                   </p>
                 </div>
 
@@ -836,28 +887,127 @@ export default function SettingsPage() {
                 </Link>
               </div>
 
+              {phoneLinkError && (
+                <div className="flex items-start gap-3 rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 p-4 text-xs text-rose-700 dark:text-rose-400">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>{phoneLinkError}</div>
+                </div>
+              )}
+
+              {phoneLinkSuccess && (
+                <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-xs text-emerald-700 dark:text-emerald-400">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>{phoneLinkSuccess}</div>
+                </div>
+              )}
+
+              {/* PromptPay / Phone Deposit Connection Card */}
+              <div className="rounded-2xl border border-indigo-200/70 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/70 via-white to-blue-50/40 dark:from-indigo-950/30 dark:via-slate-900/40 dark:to-slate-900/40 p-5 sm:p-6 shadow-sm">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className="h-10 w-10 shrink-0 rounded-xl bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-white shadow-sm shadow-indigo-500/20">
+                      <Zap className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-slate-900 dark:text-white">
+                          PromptPay & ATM Deposit Link
+                        </span>
+                        <span className="rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold px-2 py-0.5">
+                          Instant Cash Routing
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xl">
+                        Connect your mobile number to an account so anyone can deposit cash into your account at any ATM machine simply by typing your phone number.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {user.phone_number ? (
+                      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-right">
+                        <div className="text-[10px] uppercase font-bold text-slate-400">Registered Mobile</div>
+                        <div className="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 mt-0.5">
+                          <Smartphone className="h-3.5 w-3.5" />
+                          {user.phone_number}
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setActiveTab("profile")}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 text-xs font-semibold shadow-sm transition"
+                      >
+                        <Phone className="h-3.5 w-3.5" />
+                        <span>Add Phone in Profile</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {user.phone_number && (
+                  <div className="mt-4 pt-4 border-t border-indigo-100 dark:border-indigo-900/40 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    {(() => {
+                      const linked = accounts.find((a) => a.linked_phone === user.phone_number);
+                      if (linked) {
+                        return (
+                          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span>
+                              Active deposit account: <strong className="font-mono">{formatAccountNumber(linked.account_number)}</strong> ({linked.account_type})
+                            </span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                          <Info className="h-4 w-4" />
+                          <span>No account is currently connected to your phone number. Select one below to activate.</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              {/* Accounts List */}
               <div className="space-y-3">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-1">
+                  Your Accounts ({accounts.length})
+                </div>
+
                 {accounts.map((acc) => {
                   const meta = getAccountMeta(acc.id);
                   const colorPreset = COLOR_PRESETS[meta.color] || COLOR_PRESETS.slate;
+                  const isPhoneLinked = acc.linked_phone && user.phone_number && acc.linked_phone === user.phone_number;
+                  const isProcessing = linkingAccountId === acc.id && phoneLinkSubmitting;
 
                   return (
                     <div
                       key={acc.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-800/30 p-4 transition hover:border-slate-300 dark:hover:border-slate-700"
+                      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border p-4 transition ${
+                        isPhoneLinked
+                          ? "border-emerald-300/80 dark:border-emerald-700/80 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-sm"
+                          : "border-slate-200/60 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-800/30 hover:border-slate-300 dark:hover:border-slate-700"
+                      }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-bold text-xs ${colorPreset.badge}`}>
                           #{acc.id}
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="font-bold text-xs text-slate-900 dark:text-white">
                               {meta.nickname || `${acc.account_type} Account`}
                             </span>
                             <span className="rounded-full bg-slate-200 dark:bg-slate-700 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:text-slate-300">
                               {acc.account_type}
                             </span>
+                            {isPhoneLinked && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                                <Zap className="h-2.5 w-2.5 fill-emerald-500 text-emerald-500" />
+                                Phone Deposit Active
+                              </span>
+                            )}
                           </div>
                           <div className="font-mono text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                             {formatAccountNumber(acc.account_number)}
@@ -865,13 +1015,50 @@ export default function SettingsPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between sm:justify-end gap-6 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200 dark:border-slate-700/50">
-                        <div className="text-right">
+                      <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200 dark:border-slate-700/50">
+                        <div className="text-right mr-2">
                           <div className="text-[10px] uppercase font-bold text-slate-400">Balance</div>
                           <div className="font-mono font-bold text-sm text-slate-900 dark:text-white">
                             {formatMoney(acc.balance, acc.currency)}
                           </div>
                         </div>
+
+                        {/* Link / Unlink Action */}
+                        {isPhoneLinked ? (
+                          <button
+                            type="button"
+                            disabled={isProcessing}
+                            onClick={() => handleUnlinkPhone(acc.id)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 px-3 py-1.5 text-xs font-semibold text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition disabled:opacity-50"
+                            title="Disconnect phone number from this account"
+                          >
+                            {isProcessing ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Unlink className="h-3.5 w-3.5" />
+                            )}
+                            <span>Unlink</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={isProcessing || !user.phone_number}
+                            onClick={() => handleLinkPhone(acc.id)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 hover:border-indigo-200 dark:hover:bg-indigo-950/30 dark:hover:border-indigo-800 transition disabled:opacity-40"
+                            title={
+                              !user.phone_number
+                                ? "Register a phone number in profile first"
+                                : "Set this account to receive phone deposits"
+                            }
+                          >
+                            {isProcessing ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
+                            ) : (
+                              <Link2 className="h-3.5 w-3.5 text-indigo-500" />
+                            )}
+                            <span>Connect Phone</span>
+                          </button>
+                        )}
 
                         <Link
                           href={`/ledger`}

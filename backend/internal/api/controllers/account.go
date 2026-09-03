@@ -192,3 +192,71 @@ func (c *AccountController) GetAccountByIDHandler(w http.ResponseWriter, r *http
 
 	responses.JSON(w, http.StatusOK, account)
 }
+
+// LinkPhoneHandler links the user's registered phone number to a specific account
+func (c *AccountController) LinkPhoneHandler(w http.ResponseWriter, r *http.Request) {
+	userIdStr, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
+	if err != nil {
+		responses.Unauthorized(w, err)
+		return
+	}
+
+	userID, err := uuid.Parse(userIdStr)
+	if err != nil {
+		responses.Unauthorized(w, err)
+		return
+	}
+
+	req := &models.LinkPhoneRequest{}
+	if err := utils.DecodeJSON(r, req); err != nil {
+		responses.BadRequest(w, err)
+		return
+	}
+
+	if err := c.Validate.Struct(req); err != nil {
+		responses.BadRequest(w, err)
+		return
+	}
+
+	acc, err := c.Usecase.LinkPhone(userID, req)
+	if err != nil {
+		responses.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	responses.JSON(w, http.StatusOK, acc)
+}
+
+// UnlinkPhoneHandler unlinks the phone number from an account
+func (c *AccountController) UnlinkPhoneHandler(w http.ResponseWriter, r *http.Request) {
+	userIdStr, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
+	if err != nil {
+		responses.Unauthorized(w, err)
+		return
+	}
+
+	userID, err := uuid.Parse(userIdStr)
+	if err != nil {
+		responses.Unauthorized(w, err)
+		return
+	}
+
+	req := &models.UnlinkPhoneRequest{}
+	if err := utils.DecodeJSON(r, req); err != nil {
+		responses.BadRequest(w, err)
+		return
+	}
+
+	if err := c.Validate.Struct(req); err != nil {
+		responses.BadRequest(w, err)
+		return
+	}
+
+	if err := c.Usecase.UnlinkPhone(userID, req); err != nil {
+		responses.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	responses.JSON(w, http.StatusOK, map[string]string{"message": "Phone unlinked successfully"})
+}
+

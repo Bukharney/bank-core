@@ -10,6 +10,8 @@ import {
   WithdrawalRequest,
   CardlessWithdrawalTicket,
   ClaimResponse,
+  ATMDepositLookupResponse,
+  ATMDepositResponse,
 } from "./types";
 
 const API_BASE = "/api";
@@ -74,13 +76,13 @@ async function request<T>(
 
 export const api = {
   auth: {
-    login: (credentials: { email: string; password: string }) =>
-      request<{ access_token: string; refresh_token: string }>("/auth/login", {
+    login: (data: { email?: string; username?: string; password: string }) =>
+      request<{ message: string; user: User }>("/auth/login", {
         method: "POST",
-        body: JSON.stringify(credentials),
+        body: JSON.stringify(data),
       }),
 
-    register: (userData: {
+    register: (data: {
       username: string;
       email: string;
       phone_number?: string;
@@ -88,9 +90,9 @@ export const api = {
       first_name: string;
       last_name: string;
     }) =>
-      request<User>("/user/register", {
+      request<{ message: string; user: User }>("/auth/register", {
         method: "POST",
-        body: JSON.stringify(userData),
+        body: JSON.stringify(data),
       }),
 
     me: () => request<User>("/auth/me", { method: "GET" }),
@@ -125,6 +127,18 @@ export const api = {
 
     getPreview: (accountNumberOrId: string | number) =>
       request<AccountPreview>(`/account/preview/${accountNumberOrId}`, { method: "GET" }),
+
+    linkPhone: (accountId: number) =>
+      request<Account>("/account/link-phone", {
+        method: "POST",
+        body: JSON.stringify({ account_id: accountId }),
+      }),
+
+    unlinkPhone: (accountId: number) =>
+      request<{ message: string }>("/account/unlink-phone", {
+        method: "POST",
+        body: JSON.stringify({ account_id: accountId }),
+      }),
 
     create: (
       data: { account_type: string; currency: string },
@@ -178,11 +192,64 @@ export const api = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone_number: phoneNumber, code }),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { message: text || `HTTP ${res.status}` };
+      }
       if (!res.ok) {
         throw new Error(data.message || data.error || `HTTP ${res.status}`);
       }
       return data as ClaimResponse;
+    },
+
+    atmDepositLookup: async (atmId: number, phoneNumber: string) => {
+      const res = await fetch(`/api/atm/${atmId}/deposit/lookup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone_number: phoneNumber }),
+      });
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { message: text || `HTTP ${res.status}` };
+      }
+      if (!res.ok) {
+        throw new Error(data.message || data.error || `HTTP ${res.status}`);
+      }
+      return data as ATMDepositLookupResponse;
+    },
+
+    atmDepositCash: async (
+      atmId: number,
+      phoneNumber: string,
+      amount: number,
+      notes?: Record<string, number>
+    ) => {
+      const res = await fetch(`/api/atm/${atmId}/deposit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone_number: phoneNumber,
+          amount,
+          notes,
+        }),
+      });
+      const text = await res.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { message: text || `HTTP ${res.status}` };
+      }
+      if (!res.ok) {
+        throw new Error(data.message || data.error || `HTTP ${res.status}`);
+      }
+      return data as ATMDepositResponse;
     },
   },
 

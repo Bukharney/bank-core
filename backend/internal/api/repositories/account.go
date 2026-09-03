@@ -71,7 +71,7 @@ func (r *AccountRepository) GetAccountByID(accountID int64) (*models.Account, er
 	account := &models.Account{}
 	query := `
 		SELECT 
-			a.id, a.account_number, a.user_id, a.currency, a.account_type, a.status, a.balance, a.version, a.created_at, a.updated_at,
+			a.id, a.account_number, a.user_id, a.currency, a.account_type, a.status, a.balance, a.version, a.linked_phone, a.created_at, a.updated_at,
 			COALESCE(u.first_name || ' ' || u.last_name, '') AS account_holder_name
 		FROM accounts a
 		LEFT JOIN users u ON a.user_id = u.id
@@ -93,7 +93,7 @@ func (r *AccountRepository) GetAccountByIDForUpdate(tx *sqlx.Tx, accountID int64
 		return nil, errors.New("transaction context required for SELECT FOR UPDATE")
 	}
 	account := &models.Account{}
-	query := `SELECT id, account_number, user_id, currency, account_type, status, balance, version, created_at, updated_at FROM accounts WHERE id = $1 FOR UPDATE`
+	query := `SELECT id, account_number, user_id, currency, account_type, status, balance, version, linked_phone, created_at, updated_at FROM accounts WHERE id = $1 FOR UPDATE`
 	err := tx.Get(account, query, accountID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -108,7 +108,7 @@ func (r *AccountRepository) GetAccountsByUserID(userID uuid.UUID) ([]*models.Acc
 	var accounts []*models.Account
 	query := `
 		SELECT 
-			a.id, a.account_number, a.user_id, a.currency, a.account_type, a.status, a.balance, a.version, a.created_at, a.updated_at,
+			a.id, a.account_number, a.user_id, a.currency, a.account_type, a.status, a.balance, a.version, a.linked_phone, a.created_at, a.updated_at,
 			COALESCE(u.first_name || ' ' || u.last_name, '') AS account_holder_name
 		FROM accounts a
 		LEFT JOIN users u ON a.user_id = u.id
@@ -126,7 +126,7 @@ func (r *AccountRepository) GetAccountByNumber(accountNumber string) (*models.Ac
 	account := &models.Account{}
 	query := `
 		SELECT 
-			a.id, a.account_number, a.user_id, a.currency, a.account_type, a.status, a.balance, a.version, a.created_at, a.updated_at,
+			a.id, a.account_number, a.user_id, a.currency, a.account_type, a.status, a.balance, a.version, a.linked_phone, a.created_at, a.updated_at,
 			COALESCE(u.first_name || ' ' || u.last_name, '') AS account_holder_name
 		FROM accounts a
 		LEFT JOIN users u ON a.user_id = u.id
@@ -140,6 +140,72 @@ func (r *AccountRepository) GetAccountByNumber(accountNumber string) (*models.Ac
 		return nil, err
 	}
 	return account, nil
+}
+
+func (r *AccountRepository) GetAccountByLinkedPhone(phone string) (*models.Account, error) {
+	account := &models.Account{}
+	query := `
+		SELECT 
+			a.id, a.account_number, a.user_id, a.currency, a.account_type, a.status, a.balance, a.version, a.linked_phone, a.created_at, a.updated_at,
+			COALESCE(u.first_name || ' ' || u.last_name, '') AS account_holder_name
+		FROM accounts a
+		LEFT JOIN users u ON a.user_id = u.id
+		WHERE a.linked_phone = $1
+	`
+	err := r.Db.Get(account, query, phone)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrAccountNotFound
+		}
+		return nil, err
+	}
+	return account, nil
+}
+
+func (r *AccountRepository) LinkPhone(userID uuid.UUID, accountID int64, phone string) error {
+	tx, err := r.Db.Beginx()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 1. Unlink any currently linked account for this user or phone
+	unlinkQuery := `UPDATE accounts SET linked_phone = NULL, updated_at = NOW() WHERE (user_id = $1 OR linked_phone = $2) AND linked_phone IS NOT NULL`
+	if _, err := tx.Exec(unlinkQuery, userID, phone); err != nil {
+		return err
+	}
+
+	// 2. Link this specific account (ensuring it belongs to the user)
+	linkQuery := `UPDATE accounts SET linked_phone = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`
+	res, err := tx.Exec(linkQuery, phone, accountID, userID)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrAccountNotFound
+	}
+
+	return tx.Commit()
+}
+
+func (r *AccountRepository) UnlinkPhone(userID uuid.UUID, accountID int64) error {
+	query := `UPDATE accounts SET linked_phone = NULL, updated_at = NOW() WHERE id = $1 AND user_id = $2`
+	res, err := r.Db.Exec(query, accountID, userID)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrAccountNotFound
+	}
+	return nil
 }
 
 // UpdateBalance updates balance using optimistic lock check (version) if version > 0
@@ -195,3 +261,4 @@ func (r *AccountRepository) UpdateStatus(accountID int64, status string) error {
 	}
 	return nil
 }
+

@@ -24,6 +24,8 @@ var unprotectedRoutes = map[string]bool{
 	"/auth/test":                    true,
 	"/transaction/withdraw/verify":  true,
 	"/transaction/withdraw/confirm": true,
+	"/transaction/atm/deposit/lookup": true,
+	"/transaction/atm/deposit":        true,
 }
 
 // statusResponseWriter wraps http.ResponseWriter to capture the status code

@@ -204,3 +204,49 @@ func (c *TransactionController) ConfirmCardlessWithdrawalHandler(w http.Response
 
 	responses.JSON(w, http.StatusOK, receipt)
 }
+
+// ATMDepositLookupHandler handles recipient phone lookup for ATM Cash Deposit
+func (c *TransactionController) ATMDepositLookupHandler(w http.ResponseWriter, r *http.Request) {
+	req := &models.ATMDepositLookupRequest{}
+	if err := utils.DecodeJSON(r, req); err != nil {
+		responses.BadRequest(w, err)
+		return
+	}
+
+	if err := c.Validate.Struct(req); err != nil {
+		responses.BadRequest(w, err)
+		return
+	}
+
+	res, err := c.Usecase.ATMDepositLookup(req)
+	if err != nil {
+		responses.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	responses.JSON(w, http.StatusOK, res)
+}
+
+// ATMDepositHandler handles Cash Deposit at the ATM
+func (c *TransactionController) ATMDepositHandler(w http.ResponseWriter, r *http.Request) {
+	req := &models.ATMDepositRequest{}
+	if err := utils.DecodeJSON(r, req); err != nil {
+		responses.BadRequest(w, err)
+		return
+	}
+
+	if err := c.Validate.Struct(req); err != nil {
+		responses.BadRequest(w, err)
+		return
+	}
+
+	idempotencyKey := r.Header.Get("Idempotency-Key")
+	receipt, err := c.Usecase.ATMDeposit(req, idempotencyKey)
+	if err != nil {
+		responses.Error(w, http.StatusBadRequest, err)
+		return
+	}
+
+	responses.JSON(w, http.StatusOK, receipt)
+}
+

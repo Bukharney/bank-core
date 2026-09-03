@@ -32,6 +32,7 @@ type Account struct {
 	Status            string    `json:"status" db:"status"`
 	Balance           int64     `json:"balance" db:"balance"` // Stored in minor currency unit (e.g., Satang/Cents)
 	Version           int64     `json:"version" db:"version"` // For optimistic locking
+	LinkedPhone       *string   `json:"linked_phone" db:"linked_phone"`
 	CreatedAt         time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -48,6 +49,14 @@ type UpdateAccountStatusRequest struct {
 	Reason    string `json:"reason"`
 }
 
+type LinkPhoneRequest struct {
+	AccountID int64 `json:"account_id" validate:"required,gt=0"`
+}
+
+type UnlinkPhoneRequest struct {
+	AccountID int64 `json:"account_id" validate:"required,gt=0"`
+}
+
 type AccountResponse struct {
 	ID                int64     `json:"id"`
 	AccountNumber     string    `json:"account_number"`
@@ -56,8 +65,9 @@ type AccountResponse struct {
 	Currency          string    `json:"currency"`
 	AccountType       string    `json:"account_type"`
 	Status            string    `json:"status"`
-	Balance           int64     `json:"balance"`   // In minor unit
+	Balance           int64     `json:"balance"` // In minor unit
 	Formatted         string    `json:"formatted"` // e.g. "1,250.50 THB"
+	LinkedPhone       *string   `json:"linked_phone,omitempty"`
 	CreatedAt         time.Time `json:"created_at"`
 }
 
@@ -76,6 +86,9 @@ type AccountRepository interface {
 	GetAccountByIDForUpdate(tx *sqlx.Tx, accountID int64) (*Account, error)
 	GetAccountsByUserID(userID uuid.UUID) ([]*Account, error)
 	GetAccountByNumber(accountNumber string) (*Account, error)
+	GetAccountByLinkedPhone(phone string) (*Account, error)
+	LinkPhone(userID uuid.UUID, accountID int64, phone string) error
+	UnlinkPhone(userID uuid.UUID, accountID int64) error
 	UpdateBalance(tx *sqlx.Tx, accountID int64, newBalance int64, currentVersion int64) error
 	UpdateStatus(accountID int64, status string) error
 }
@@ -85,5 +98,9 @@ type AccountUsecase interface {
 	GetAccountByID(accountID int64) (*Account, error)
 	GetAccountByNumber(accountNumber string) (*Account, error)
 	GetAccountsByUserID(userID uuid.UUID) ([]*Account, error)
+	GetAccountByLinkedPhone(phone string) (*Account, error)
+	LinkPhone(userID uuid.UUID, req *LinkPhoneRequest) (*Account, error)
+	UnlinkPhone(userID uuid.UUID, req *UnlinkPhoneRequest) error
 	UpdateAccountStatus(req *UpdateAccountStatusRequest) error
 }
+

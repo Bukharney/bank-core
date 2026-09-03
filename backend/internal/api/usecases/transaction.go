@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bukharney/bank-core/internal/api/models"
@@ -858,3 +859,214 @@ func (u *TransferUsecase) ConfirmCardlessWithdrawal(req *models.ConfirmCardlessW
 		CreatedAt:         journal.PostedAt,
 	}, nil
 }
+
+func maskCustomerName(name string) string {
+	parts := strings.Fields(name)
+	if len(parts) == 0 {
+		return "Bank Customer"
+	}
+	var masked []string
+	for _, part := range parts {
+		runes := []rune(part)
+		if len(runes) <= 1 {
+			masked = append(masked, string(runes))
+		} else {
+			masked = append(masked, string(runes[0])+strings.Repeat("*", len(runes)-1))
+		}
+	}
+	return strings.Join(masked, " ")
+}
+
+func maskAccountNumberStr(accNum string) string {
+	if len(accNum) < 4 {
+		return accNum
+	}
+	last4 := accNum[len(accNum)-4:]
+	return "***-***" + last4
+}
+
+// ATMDepositLookup looks up recipient account linked to a phone number
+func (u *TransferUsecase) ATMDepositLookup(req *models.ATMDepositLookupRequest) (*models.ATMDepositLookupResponse, error) {
+	cleanPhone := strings.ReplaceAll(req.PhoneNumber, "-", "")
+	cleanPhone = strings.TrimSpace(cleanPhone)
+	if cleanPhone == "" {
+		return nil, errors.New("phone number cannot be empty")
+	}
+
+	account, err := u.AccountRepo.GetAccountByLinkedPhone(cleanPhone)
+	if err != nil {
+		return nil, errors.New("no active bank account linked to this phone number")
+	}
+
+	if account.Status != models.AccountStatusActive {
+		return nil, errors.New("recipient bank account is inactive or frozen")
+	}
+
+	return &models.ATMDepositLookupResponse{
+		AccountID:           account.ID,
+		MaskedName:          maskCustomerName(account.AccountHolderName),
+		MaskedAccountNumber: maskAccountNumberStr(account.AccountNumber),
+		Currency:            account.Currency,
+		AccountType:         account.AccountType,
+	}, nil
+}
+
+// ATMDeposit processes Cash Deposit via ATM with Double-Entry Bookkeeping and Vault Cash Addition
+func (u *TransferUsecase) ATMDeposit(req *models.ATMDepositRequest, idempotencyKey string) (*models.ATMDepositReceipt, error) {
+	cleanPhone := strings.ReplaceAll(req.PhoneNumber, "-", "")
+	cleanPhone = strings.TrimSpace(cleanPhone)
+	if cleanPhone == "" {
+		return nil, errors.New("phone number cannot be empty")
+	}
+
+	// Validation: Denomination must be multiples of 100 THB (10,000 Satang)
+	if req.Amount <= 0 {
+		return nil, errors.New("deposit amount must be greater than zero")
+	}
+	if req.Amount < 10000 { // 100 THB
+		return nil, errors.New("minimum ATM deposit is 100 THB")
+	}
+	if req.Amount%10000 != 0 {
+		return nil, errors.New("ATM cash deposit accepts only 100, 500, and 1,000 THB banknotes (multiples of 100)")
+	}
+	if req.Amount > 10000000 { // 100,000 THB
+		return nil, errors.New("maximum ATM deposit per transaction is 100,000 THB")
+	}
+
+	atmID := req.ATMID
+	if atmID <= 0 {
+		atmID = 1
+	}
+
+	tx, err := u.Db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	// 1. Fetch linked customer account
+	account, err := u.AccountRepo.GetAccountByLinkedPhone(cleanPhone)
+	if err != nil {
+		return nil, errors.New("no active bank account linked to this phone number")
+	}
+
+	// 2. Lock customer account for update
+	customerAcc, err := u.AccountRepo.GetAccountByIDForUpdate(tx, account.ID)
+	if err != nil {
+		return nil, fmt.Errorf("customer account not found: %w", err)
+	}
+	if customerAcc.Status != models.AccountStatusActive {
+		return nil, ErrReceiverAccountFrozen
+	}
+
+	// 3. Lock per-ATM Vault Account (Cash entered vault, so vault balance increases)
+	vaultAccountID := int64(100 + atmID)
+	vaultAccount, err := u.AccountRepo.GetAccountByIDForUpdate(tx, vaultAccountID)
+	if err != nil {
+		vaultAccountID = 100
+		vaultAccount, _ = u.AccountRepo.GetAccountByIDForUpdate(tx, vaultAccountID)
+	}
+
+	// 4. Update balances
+	newCustomerBal := customerAcc.Balance + req.Amount
+	if err := u.AccountRepo.UpdateBalance(tx, customerAcc.ID, newCustomerBal, 0); err != nil {
+		return nil, err
+	}
+
+	var newVaultBal int64
+	if vaultAccount != nil {
+		newVaultBal = vaultAccount.Balance + req.Amount
+		_ = u.AccountRepo.UpdateBalance(tx, vaultAccount.ID, newVaultBal, 0)
+	}
+
+	// 5. Double-Entry Bookkeeping
+	refID := idempotencyKey
+	if refID == "" {
+		refID = utils.GenerateReference("DEP-ATM")
+	}
+	journalID := uuid.New()
+	desc := fmt.Sprintf("ATM Cash Deposit at Machine #%d (Phone: %s)", atmID, cleanPhone)
+
+	journal := &models.JournalEntry{
+		ID:              journalID,
+		ReferenceID:     refID,
+		TransactionType: models.TransactionTypeDeposit,
+		Description:     desc,
+		Status:          models.JournalStatusPosted,
+		PostedAt:        time.Now().UTC(),
+	}
+	if err := u.LedgerRepo.CreateJournalEntry(tx, journal); err != nil {
+		return nil, err
+	}
+
+	// Leg 1: DEBIT ATM Vault Account (Cash Asset in ATM Vault increased)
+	debitPosting := &models.LedgerEntry{
+		JournalEntryID: journalID,
+		AccountID:      vaultAccountID,
+		EntryType:      models.EntryTypeDebit,
+		Amount:         req.Amount,
+		BalanceAfter:   newVaultBal,
+		Sequence:       1,
+	}
+	if err := u.LedgerRepo.CreateLedgerEntry(tx, debitPosting); err != nil {
+		return nil, err
+	}
+
+	// Leg 2: CREDIT Customer Account (Customer balance increased)
+	creditPosting := &models.LedgerEntry{
+		JournalEntryID: journalID,
+		AccountID:      customerAcc.ID,
+		EntryType:      models.EntryTypeCredit,
+		Amount:         req.Amount,
+		BalanceAfter:   newCustomerBal,
+		Sequence:       2,
+	}
+	if err := u.LedgerRepo.CreateLedgerEntry(tx, creditPosting); err != nil {
+		return nil, err
+	}
+
+	// 6. Persist Transactional Outbox Event
+	if u.OutboxRepo != nil {
+		eventPayload, _ := json.Marshal(map[string]interface{}{
+			"journal_id":     journalID,
+			"reference_id":   refID,
+			"atm_id":         atmID,
+			"account_id":     customerAcc.ID,
+			"phone_number":   cleanPhone,
+			"amount":         req.Amount,
+			"currency":       customerAcc.Currency,
+			"notes":          req.Notes,
+			"deposited_at":   journal.PostedAt,
+		})
+		outboxEvent := &models.OutboxEvent{
+			AggregateType: "ATM_DEPOSIT",
+			AggregateID:   journalID.String(),
+			EventType:     models.EventMoneyDeposited,
+			Payload:       eventPayload,
+			Status:        models.OutboxStatusPending,
+		}
+		_ = u.OutboxRepo.InsertOutboxEventTx(tx, outboxEvent)
+	}
+
+	if err := tx.Commit(); err != nil {
+		metrics.TransactionsTotal.WithLabelValues("deposit", "failed").Inc()
+		return nil, err
+	}
+
+	metrics.TransactionsTotal.WithLabelValues("deposit", "success").Inc()
+	metrics.TransactionAmountSatangTotal.WithLabelValues("deposit", customerAcc.Currency).Add(float64(req.Amount))
+
+	return &models.ATMDepositReceipt{
+		JournalID:           journalID,
+		ReferenceID:         refID,
+		ATMID:               atmID,
+		AccountID:           customerAcc.ID,
+		MaskedName:          maskCustomerName(customerAcc.AccountHolderName),
+		MaskedAccountNumber: maskAccountNumberStr(customerAcc.AccountNumber),
+		Amount:              req.Amount,
+		Currency:            customerAcc.Currency,
+		Status:              "SUCCESS",
+		CreatedAt:           journal.PostedAt,
+	}, nil
+}
+

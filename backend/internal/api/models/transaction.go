@@ -91,6 +91,39 @@ type ConfirmCardlessWithdrawalRequest struct {
 	ATMID   int       `json:"atm_id"`
 }
 
+// ATM Cash Deposit Models
+type ATMDepositLookupRequest struct {
+	PhoneNumber string `json:"phone_number" validate:"required"`
+}
+
+type ATMDepositLookupResponse struct {
+	AccountID           int64  `json:"account_id"`
+	MaskedName          string `json:"masked_name"`
+	MaskedAccountNumber string `json:"masked_account_number"`
+	Currency            string `json:"currency"`
+	AccountType         string `json:"account_type"`
+}
+
+type ATMDepositRequest struct {
+	ATMID       int            `json:"atm_id" validate:"required"`
+	PhoneNumber string         `json:"phone_number" validate:"required"`
+	Amount      int64          `json:"amount" validate:"required,gt=0"` // in Satang
+	Notes       map[string]int `json:"notes,omitempty"`
+}
+
+type ATMDepositReceipt struct {
+	JournalID           uuid.UUID `json:"journal_id"`
+	ReferenceID         string    `json:"reference_id"`
+	ATMID               int       `json:"atm_id"`
+	AccountID           int64     `json:"account_id"`
+	MaskedName          string    `json:"masked_name"`
+	MaskedAccountNumber string    `json:"masked_account_number"`
+	Amount              int64     `json:"amount"` // in Satang
+	Currency            string    `json:"currency"`
+	Status              string    `json:"status"`
+	CreatedAt           time.Time `json:"created_at"`
+}
+
 type TransferReceipt struct {
 	JournalID         uuid.UUID `json:"journal_id"`
 	ReferenceID       string    `json:"reference_id"`
@@ -109,4 +142,7 @@ type TransferUsecase interface {
 	RequestCardlessWithdrawal(userID uuid.UUID, req *RequestCardlessWithdrawalRequest) (*CardlessWithdrawalTicket, error)
 	VerifyCardlessWithdrawal(req *VerifyCardlessWithdrawalRequest) (*VerifyCardlessWithdrawalResponse, error)
 	ConfirmCardlessWithdrawal(req *ConfirmCardlessWithdrawalRequest) (*TransferReceipt, error)
+	ATMDepositLookup(req *ATMDepositLookupRequest) (*ATMDepositLookupResponse, error)
+	ATMDeposit(req *ATMDepositRequest, idempotencyKey string) (*ATMDepositReceipt, error)
 }
+

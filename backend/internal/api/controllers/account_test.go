@@ -52,6 +52,26 @@ func (m *mockAccountUsecase) UpdateAccountStatus(req *models.UpdateAccountStatus
 	return nil
 }
 
+func (m *mockAccountUsecase) GetAccountByLinkedPhone(phone string) (*models.Account, error) {
+	for _, a := range m.accountsByID {
+		if a.LinkedPhone != nil && *a.LinkedPhone == phone {
+			return a, nil
+		}
+	}
+	return nil, errors.New("not found")
+}
+
+func (m *mockAccountUsecase) LinkPhone(userID uuid.UUID, req *models.LinkPhoneRequest) (*models.Account, error) {
+	if a, ok := m.accountsByID[req.AccountID]; ok {
+		return a, nil
+	}
+	return nil, errors.New("not found")
+}
+
+func (m *mockAccountUsecase) UnlinkPhone(userID uuid.UUID, req *models.UnlinkPhoneRequest) error {
+	return nil
+}
+
 func setupAccountControllerTest() (*config.Config, *mockAccountUsecase, *controllers.AccountController) {
 	cfg := &config.Config{
 		JWTSecret: map[bool]string{

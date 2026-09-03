@@ -162,6 +162,164 @@ func simulateDispense(amount int) error {
 	return nil
 }
 
+// depositLookup queries Bank Core to preview recipient account connected to phone number
+func depositLookup(w http.ResponseWriter, r *http.Request, atmID int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	var req models.DepositLookupRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(models.DepositLookupResponse{
+			Status:  "error",
+			Message: "Invalid request payload",
+		})
+		return
+	}
+
+	payload, _ := json.Marshal(map[string]interface{}{
+		"phone_number": req.PhoneNumber,
+	})
+
+	resp, err := http.Post("http://localhost:8080/transaction/atm/deposit/lookup", "application/json", bytes.NewReader(payload))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(models.DepositLookupResponse{
+			Status:  "error",
+			Message: "Bank Core engine unreachable",
+		})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errData struct {
+			Error string `json:"error"`
+		}
+		_ = json.NewDecoder(resp.Body).Decode(&errData)
+		w.WriteHeader(resp.StatusCode)
+		json.NewEncoder(w).Encode(models.DepositLookupResponse{
+			Status:  "error",
+			Message: errData.Error,
+		})
+		return
+	}
+
+	var lookupData struct {
+		AccountID           int64  `json:"account_id"`
+		MaskedName          string `json:"masked_name"`
+		MaskedAccountNumber string `json:"masked_account_number"`
+		Currency            string `json:"currency"`
+		AccountType         string `json:"account_type"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&lookupData)
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(models.DepositLookupResponse{
+		Status:              "success",
+		AccountID:           lookupData.AccountID,
+		MaskedName:          lookupData.MaskedName,
+		MaskedAccountNumber: lookupData.MaskedAccountNumber,
+		Currency:            lookupData.Currency,
+		AccountType:         lookupData.AccountType,
+	})
+}
+
+// depositCash accepts cash notes and calls Bank Core to commit double-entry ledger
+func depositCash(w http.ResponseWriter, r *http.Request, atmID int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	var req models.DepositCashRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(models.DepositCashResponse{
+			Status:  "error",
+			Message: "Invalid request payload",
+		})
+		return
+	}
+
+	log.Printf("[ATM #%d] Received Cash Deposit: Phone=%s, Amount=%d", atmID, req.PhoneNumber, req.Amount)
+
+	// Simulate banknote ingestion and validation
+	time.Sleep(300 * time.Millisecond)
+
+	corePayload, _ := json.Marshal(map[string]interface{}{
+		"atm_id":       atmID,
+		"phone_number": req.PhoneNumber,
+		"amount":       req.Amount,
+		"notes":        req.Notes,
+	})
+
+	coreResp, err := http.Post("http://localhost:8080/transaction/atm/deposit", "application/json", bytes.NewReader(corePayload))
+	if err != nil {
+		log.Printf("[ATM #%d] Core communication error: %v", atmID, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(models.DepositCashResponse{
+			Status:  "error",
+			Message: "Bank Core engine unreachable",
+		})
+		return
+	}
+	defer coreResp.Body.Close()
+
+	if coreResp.StatusCode != http.StatusOK {
+		var errData struct {
+			Error string `json:"error"`
+		}
+		_ = json.NewDecoder(coreResp.Body).Decode(&errData)
+		w.WriteHeader(coreResp.StatusCode)
+		json.NewEncoder(w).Encode(models.DepositCashResponse{
+			Status:  "error",
+			Message: errData.Error,
+		})
+		return
+	}
+
+	var receipt struct {
+		JournalID           string `json:"journal_id"`
+		ReferenceID         string `json:"reference_id"`
+		ATMID               int    `json:"atm_id"`
+		AccountID           int64  `json:"account_id"`
+		MaskedName          string `json:"masked_name"`
+		MaskedAccountNumber string `json:"masked_account_number"`
+		Amount              int64  `json:"amount"`
+		Currency            string `json:"currency"`
+		CreatedAt           string `json:"created_at"`
+	}
+	_ = json.NewDecoder(coreResp.Body).Decode(&receipt)
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(models.DepositCashResponse{
+		Status:              "success",
+		JournalID:           receipt.JournalID,
+		ReferenceID:         receipt.ReferenceID,
+		ATMID:               receipt.ATMID,
+		AccountID:           receipt.AccountID,
+		MaskedName:          receipt.MaskedName,
+		MaskedAccountNumber: receipt.MaskedAccountNumber,
+		Amount:              receipt.Amount,
+		Currency:            receipt.Currency,
+		CreatedAt:           receipt.CreatedAt,
+		Message:             fmt.Sprintf("Deposited %d Satang successfully to %s", receipt.Amount, receipt.MaskedName),
+	})
+}
+
 func spawnATMServer(n int) {
 	for i := 0; i < n; i++ {
 		atmIdx := i + 1
@@ -173,6 +331,12 @@ func spawnATMServer(n int) {
 			})
 			mux.HandleFunc("/atm/claim", func(w http.ResponseWriter, r *http.Request) {
 				claimCash(w, r, atmID)
+			})
+			mux.HandleFunc("/atm/deposit/lookup", func(w http.ResponseWriter, r *http.Request) {
+				depositLookup(w, r, atmID)
+			})
+			mux.HandleFunc("/atm/deposit", func(w http.ResponseWriter, r *http.Request) {
+				depositCash(w, r, atmID)
 			})
 			mux.HandleFunc("/atm/health", func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
@@ -193,3 +357,4 @@ func main() {
 	spawnATMServer(3)
 	select {}
 }
+

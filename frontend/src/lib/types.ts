@@ -22,6 +22,7 @@ export interface Account {
   status: "ACTIVE" | "FROZEN" | "CLOSED";
   balance: number; // In minor unit (Satang)
   version: number;
+  linked_phone?: string;
   created_at: string;
   updated_at: string;
 }
@@ -80,6 +81,31 @@ export interface ClaimResponse {
   currency?: string;
   message: string;
 }
+
+export interface ATMDepositLookupResponse {
+  status: string;
+  account_id?: number;
+  masked_name?: string;
+  masked_account_number?: string;
+  currency?: string;
+  account_type?: string;
+  message?: string;
+}
+
+export interface ATMDepositResponse {
+  status: string;
+  journal_id?: string;
+  reference_id?: string;
+  atm_id?: number;
+  account_id?: number;
+  masked_name?: string;
+  masked_account_number?: string;
+  amount?: number;
+  currency?: string;
+  created_at?: string;
+  message: string;
+}
+
 
 export interface TransferReceipt {
   journal_id: string;

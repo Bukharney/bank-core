@@ -70,6 +70,18 @@ func (m *mockAccountRepoForLedger) UpdateStatus(accountID int64, status string) 
 	return nil
 }
 
+func (m *mockAccountRepoForLedger) GetAccountByLinkedPhone(phone string) (*models.Account, error) {
+	return nil, errors.New("not found")
+}
+
+func (m *mockAccountRepoForLedger) LinkPhone(userID uuid.UUID, accountID int64, phone string) error {
+	return nil
+}
+
+func (m *mockAccountRepoForLedger) UnlinkPhone(userID uuid.UUID, accountID int64) error {
+	return nil
+}
+
 func setupLedgerControllerTest() (*config.Config, *mockLedgerUsecase, *mockAccountRepoForLedger, *controllers.LedgerController) {
 	cfg := &config.Config{
 		JWTSecret: map[bool]string{

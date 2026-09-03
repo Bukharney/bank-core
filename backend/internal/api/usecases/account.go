@@ -11,14 +11,16 @@ import (
 )
 
 type AccountUsecase struct {
-	Cfg  *config.Config
-	Repo models.AccountRepository
+	Cfg      *config.Config
+	Repo     models.AccountRepository
+	UserRepo models.UserRepository
 }
 
-func NewAccountUsecase(cfg *config.Config, repo models.AccountRepository) models.AccountUsecase {
+func NewAccountUsecase(cfg *config.Config, repo models.AccountRepository, userRepo models.UserRepository) models.AccountUsecase {
 	return &AccountUsecase{
-		Cfg:  cfg,
-		Repo: repo,
+		Cfg:      cfg,
+		Repo:     repo,
+		UserRepo: userRepo,
 	}
 }
 
@@ -88,3 +90,56 @@ func (u *AccountUsecase) GetAccountsByUserID(userID uuid.UUID) ([]*models.Accoun
 func (u *AccountUsecase) UpdateAccountStatus(req *models.UpdateAccountStatusRequest) error {
 	return u.Repo.UpdateStatus(req.AccountID, req.Status)
 }
+
+func (u *AccountUsecase) GetAccountByLinkedPhone(phone string) (*models.Account, error) {
+	if phone == "" {
+		return nil, fmt.Errorf("phone number cannot be empty")
+	}
+	return u.Repo.GetAccountByLinkedPhone(phone)
+}
+
+func (u *AccountUsecase) LinkPhone(userID uuid.UUID, req *models.LinkPhoneRequest) (*models.Account, error) {
+	// 1. Verify account exists and belongs to user
+	acc, err := u.Repo.GetAccountByID(req.AccountID)
+	if err != nil {
+		return nil, fmt.Errorf("account not found: %w", err)
+	}
+	if acc.UserID != userID {
+		return nil, fmt.Errorf("account not owned by current user")
+	}
+	if acc.Status != models.AccountStatusActive {
+		return nil, fmt.Errorf("cannot link an inactive account")
+	}
+
+	// 2. Fetch user's registered phone number
+	user, err := u.UserRepo.GetUserByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve user profile: %w", err)
+	}
+	if user.PhoneNumber == nil || *user.PhoneNumber == "" {
+		return nil, fmt.Errorf("no phone number configured in profile. Please set your phone number in Settings first")
+	}
+
+	phone := *user.PhoneNumber
+
+	// 3. Link phone atomically
+	if err := u.Repo.LinkPhone(userID, req.AccountID, phone); err != nil {
+		return nil, fmt.Errorf("failed to link phone: %w", err)
+	}
+
+	// 4. Return updated account
+	return u.Repo.GetAccountByID(req.AccountID)
+}
+
+func (u *AccountUsecase) UnlinkPhone(userID uuid.UUID, req *models.UnlinkPhoneRequest) error {
+	acc, err := u.Repo.GetAccountByID(req.AccountID)
+	if err != nil {
+		return fmt.Errorf("account not found: %w", err)
+	}
+	if acc.UserID != userID {
+		return fmt.Errorf("account not owned by current user")
+	}
+
+	return u.Repo.UnlinkPhone(userID, req.AccountID)
+}
+
