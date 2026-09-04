@@ -91,6 +91,13 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	authRouter.HandleFunc("GET /test", authHandler.TestHandler)
 	handler.Handle("/auth/", http.StripPrefix("/auth", authRouter))
 
+	// Health Check Endpoint
+	handler.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
+
 	// Prometheus Metrics Scrape Endpoint
 	handler.Handle("GET /metrics", promhttp.Handler())
 }

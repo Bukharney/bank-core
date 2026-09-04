@@ -6,11 +6,19 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/bukharney/bank-core/atm/models"
 	"github.com/bukharney/bank-core/atm/session"
 )
+
+func getBankCoreURL() string {
+	if u := os.Getenv("BANK_CORE_URL"); u != "" {
+		return u
+	}
+	return "http://localhost:8080"
+}
 
 // dispenseCash simulates dispensing cash with session ID.
 func dispenseCash(w http.ResponseWriter, r *http.Request, s session.SessionM, atmID int) {
@@ -88,7 +96,7 @@ func claimCash(w http.ResponseWriter, r *http.Request, atmID int) {
 		"atm_id":       atmID,
 	})
 
-	verifyResp, err := http.Post("http://localhost:8080/transaction/withdraw/verify", "application/json", bytes.NewReader(verifyPayload))
+	verifyResp, err := http.Post(fmt.Sprintf("%s/transaction/withdraw/verify", getBankCoreURL()), "application/json", bytes.NewReader(verifyPayload))
 	if err != nil {
 		log.Printf("[ATM #%d] Core communication error: %v", atmID, err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -137,7 +145,7 @@ func claimCash(w http.ResponseWriter, r *http.Request, atmID int) {
 		"atm_id":   atmID,
 	})
 
-	confirmResp, err := http.Post("http://localhost:8080/transaction/withdraw/confirm", "application/json", bytes.NewReader(confirmPayload))
+	confirmResp, err := http.Post(fmt.Sprintf("%s/transaction/withdraw/confirm", getBankCoreURL()), "application/json", bytes.NewReader(confirmPayload))
 	if err != nil || confirmResp.StatusCode != http.StatusOK {
 		log.Printf("[ATM #%d] Warning: failed to confirm ledger with Bank Core: %v", atmID, err)
 	} else {
@@ -188,7 +196,7 @@ func depositLookup(w http.ResponseWriter, r *http.Request, atmID int) {
 		"phone_number": req.PhoneNumber,
 	})
 
-	resp, err := http.Post("http://localhost:8080/transaction/atm/deposit/lookup", "application/json", bytes.NewReader(payload))
+	resp, err := http.Post(fmt.Sprintf("%s/transaction/atm/deposit/lookup", getBankCoreURL()), "application/json", bytes.NewReader(payload))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(models.DepositLookupResponse{
@@ -266,7 +274,7 @@ func depositCash(w http.ResponseWriter, r *http.Request, atmID int) {
 		"notes":        req.Notes,
 	})
 
-	coreResp, err := http.Post("http://localhost:8080/transaction/atm/deposit", "application/json", bytes.NewReader(corePayload))
+	coreResp, err := http.Post(fmt.Sprintf("%s/transaction/atm/deposit", getBankCoreURL()), "application/json", bytes.NewReader(corePayload))
 	if err != nil {
 		log.Printf("[ATM #%d] Core communication error: %v", atmID, err)
 		w.WriteHeader(http.StatusInternalServerError)

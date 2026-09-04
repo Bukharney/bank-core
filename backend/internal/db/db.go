@@ -2,8 +2,10 @@ package db
 
 import (
 	"context"
+	"embed"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/bukharney/bank-core/internal/config"
@@ -29,8 +31,44 @@ func Connect(cfg *config.Config) (*sqlx.DB, error) {
 	return db, nil
 }
 
+//go:embed migrations/*.sql
+var migrationFS embed.FS
+
 // Migrate migrates the database
 func Migrate(db *sqlx.DB) error {
+	entries, err := migrationFS.ReadDir("migrations")
+	if err == nil && len(entries) > 0 {
+		var sqlFiles []string
+		for _, entry := range entries {
+			if strings.HasSuffix(entry.Name(), ".sql") {
+				sqlFiles = append(sqlFiles, entry.Name())
+			}
+		}
+
+		sort.Slice(sqlFiles, func(i, j int) bool {
+			if sqlFiles[i] == "init.sql" {
+				return true
+			}
+			if sqlFiles[j] == "init.sql" {
+				return false
+			}
+			return sqlFiles[i] < sqlFiles[j]
+		})
+
+		for _, fileName := range sqlFiles {
+			content, err := migrationFS.ReadFile("migrations/" + fileName)
+			if err != nil {
+				return err
+			}
+
+			_, err = db.Exec(string(content))
+			if err != nil {
+				return fmt.Errorf("migration %s failed: %w", fileName, err)
+			}
+		}
+		return nil
+	}
+
 	migrationDir := "./internal/db/migrations"
 	if _, err := os.Stat(migrationDir); os.IsNotExist(err) {
 		if _, err := os.Stat("../internal/db/migrations"); err == nil {
@@ -43,17 +81,32 @@ func Migrate(db *sqlx.DB) error {
 		return err
 	}
 
+	var sqlFiles []string
 	for _, file := range files {
 		if strings.HasSuffix(file.Name(), ".sql") {
-			migration, err := os.ReadFile(fmt.Sprintf("%s/%s", migrationDir, file.Name()))
-			if err != nil {
-				return err
-			}
+			sqlFiles = append(sqlFiles, file.Name())
+		}
+	}
 
-			_, err = db.Exec(string(migration))
-			if err != nil {
-				return err
-			}
+	sort.Slice(sqlFiles, func(i, j int) bool {
+		if sqlFiles[i] == "init.sql" {
+			return true
+		}
+		if sqlFiles[j] == "init.sql" {
+			return false
+		}
+		return sqlFiles[i] < sqlFiles[j]
+	})
+
+	for _, fileName := range sqlFiles {
+		migration, err := os.ReadFile(fmt.Sprintf("%s/%s", migrationDir, fileName))
+		if err != nil {
+			return err
+		}
+
+		_, err = db.Exec(string(migration))
+		if err != nil {
+			return fmt.Errorf("migration %s failed: %w", fileName, err)
 		}
 	}
 

@@ -1,0 +1,128 @@
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: bank_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: ${POSTGRES_DB:-bank}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-bank}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bank-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: bank_redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set}
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bank-net
+
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/bukharney/bank-core-backend:latest}
+    container_name: bank_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: "8080"
+      SERVER_PORT: "8080"
+      DB_URL: "postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-bank}?sslmode=disable"
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-bank}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_SSLMODE: disable
+      REDIS_URL: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: ${REDIS_DB:-0}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET must be set}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET must be set}
+      ATM_VAULT_1_URL: ${ATM_VAULT_1_URL:-http://atm:8081}
+      ATM_VAULT_2_URL: ${ATM_VAULT_2_URL:-http://atm:8082}
+      ATM_VAULT_3_URL: ${ATM_VAULT_3_URL:-http://atm:8083}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - bank-net
+
+  atm:
+    image: ${ATM_IMAGE:-ghcr.io/bukharney/bank-core-atm:latest}
+    container_name: bank_atm
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      BANK_CORE_URL: "http://backend:8080"
+    expose:
+      - "8081"
+      - "8082"
+      - "8083"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/atm/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - bank-net
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/bukharney/bank-core-frontend:latest}
+    container_name: bank_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+      atm:
+        condition: service_healthy
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      BACKEND_URL: "http://backend:8080"
+      ATM_1_URL: ${ATM_1_URL:-http://atm:8081/atm}
+      ATM_2_URL: ${ATM_2_URL:-http://atm:8082/atm}
+      ATM_3_URL: ${ATM_3_URL:-http://atm:8083/atm}
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/login"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - bank-net
+
+networks:
+  bank-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
