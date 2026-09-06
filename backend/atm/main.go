@@ -332,7 +332,7 @@ func spawnATMServer(n int) {
 	for i := 0; i < n; i++ {
 		atmIdx := i + 1
 		go func(atmID int) {
-			s := session.NewSession()
+			s := session.NewSession(atmID)
 			mux := http.NewServeMux()
 			mux.HandleFunc("/atm/dispense", func(w http.ResponseWriter, r *http.Request) {
 				dispenseCash(w, r, s, atmID)

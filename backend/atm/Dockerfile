@@ -28,7 +28,8 @@ WORKDIR /app
 
 RUN apk add --no-cache ca-certificates tzdata curl && \
     addgroup -g 10002 -S atmgroup && \
-    adduser -u 10002 -S atmuser -G atmgroup
+    adduser -u 10002 -S atmuser -G atmgroup && \
+    chown -R atmuser:atmgroup /app
 
 COPY --from=builder --chown=atmuser:atmgroup /app/atm-server /app/atm-server
 

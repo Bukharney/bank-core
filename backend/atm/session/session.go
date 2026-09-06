@@ -1,8 +1,10 @@
 package session
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -13,14 +15,21 @@ type SessionM interface {
 }
 
 type Session struct {
-	session map[string]time.Time
-	mu      sync.Mutex
+	session  map[string]time.Time
+	mu       sync.RWMutex
+	filePath string
 }
 
 // NewSession creates a new session and initializes it.
-func NewSession() SessionM {
+func NewSession(atmID ...int) SessionM {
+	filePath := "session.txt"
+	if len(atmID) > 0 && atmID[0] > 0 {
+		filePath = fmt.Sprintf("session_%d.txt", atmID[0])
+	}
+
 	s := &Session{
-		session: make(map[string]time.Time),
+		session:  make(map[string]time.Time),
+		filePath: filePath,
 	}
 	s.init(time.Second * 10)
 	return s
@@ -28,24 +37,39 @@ func NewSession() SessionM {
 
 // ValidateSession validates a session.
 func (s *Session) ValidateSession(sessionID string) bool {
-	_, ok := s.session[sessionID]
-	return ok
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	expiry, ok := s.session[sessionID]
+	if !ok {
+		return false
+	}
+	if time.Now().After(expiry) {
+		delete(s.session, sessionID)
+		return false
+	}
+	return true
 }
 
 // CreateSession creates a new session.
 // t is the duration for which the session is valid.
 func (s *Session) CreateSession(t time.Duration) string {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	sessionID := fmt.Sprintf("%d", time.Now().UnixNano())
 	s.session[sessionID] = time.Now().Add(t)
-	s.mu.Unlock()
 	return sessionID
 }
 
 // sessionCleanup cleans up expired sessions.
 func (s *Session) sessionCleanup() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now()
 	for k, v := range s.session {
-		if time.Now().After(v) {
+		if now.After(v) {
 			delete(s.session, k)
 		}
 	}
@@ -53,49 +77,70 @@ func (s *Session) sessionCleanup() {
 
 // writeSession to file
 func (s *Session) writeSession() {
-	file := "session.txt"
-	f, err := os.Create(file)
+	s.mu.RLock()
+	snapshot := make(map[string]time.Time, len(s.session))
+	for k, v := range s.session {
+		snapshot[k] = v
+	}
+	s.mu.RUnlock()
+
+	f, err := os.Create(s.filePath)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("[%s] failed to create session file: %v\n", s.filePath, err)
 		return
 	}
 	defer f.Close()
 
-	for k, v := range s.session {
-		println(k, v.String())
-		_, err := f.WriteString(fmt.Sprintf("%s %s\n", k, v.String()))
+	w := bufio.NewWriter(f)
+	for k, v := range snapshot {
+		_, err := fmt.Fprintf(w, "%s %s\n", k, v.Format(time.RFC3339Nano))
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("[%s] error writing session: %v\n", s.filePath, err)
 			return
 		}
 	}
+	_ = w.Flush()
 }
 
 // readSession from file
 func (s *Session) readSession() {
-	file := "session.txt"
-	f, err := os.Open(file)
+	f, err := os.Open(s.filePath)
 	if err != nil {
-		fmt.Println(err)
+		// Fresh startup without previous session file is normal
+		if !os.IsNotExist(err) {
+			fmt.Printf("[%s] error reading session file: %v\n", s.filePath, err)
+		}
 		return
 	}
 	defer f.Close()
 
-	var sessionID string
-	var sessionTime string
-	for {
-		_, err := fmt.Fscanf(f, "%s %s\n", &sessionID, &sessionTime)
+	scanner := bufio.NewScanner(f)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, " ", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		sessionID := parts[0]
+		sessionTimeStr := parts[1]
+
+		t, err := time.Parse(time.RFC3339Nano, sessionTimeStr)
 		if err != nil {
-			break
+			t, err = time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", sessionTimeStr)
+			if err != nil {
+				continue
+			}
 		}
 
-		t, err := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", sessionTime)
-		if err != nil {
-			fmt.Println(err)
-			return
+		if time.Now().Before(t) {
+			s.session[sessionID] = t
 		}
-
-		s.session[sessionID] = t
 	}
 }
 
@@ -106,9 +151,9 @@ func (s *Session) init(t time.Duration) {
 
 	go func() {
 		for {
+			time.Sleep(t)
 			s.sessionCleanup()
 			s.writeSession()
-			time.Sleep(t)
 		}
 	}()
 }
