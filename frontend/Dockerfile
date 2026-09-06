@@ -6,8 +6,8 @@ FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Enable pnpm via corepack
-RUN corepack enable pnpm
+# Install pnpm 9
+RUN npm install -g pnpm@9
 
 # Install dependencies based on lockfile
 COPY package.json pnpm-lock.yaml* package-lock.json* ./
@@ -24,7 +24,7 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-RUN corepack enable pnpm
+RUN npm install -g pnpm@9
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
