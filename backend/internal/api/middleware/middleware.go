@@ -19,6 +19,7 @@ var unprotectedRoutes = map[string]bool{
 	"/health":                       true,
 	"/metrics":                      true,
 	"/user/register":                true,
+	"/auth/register":                true,
 	"/auth/login":                   true,
 	"/auth/refresh":                 true,
 	"/auth/logout":                  true,

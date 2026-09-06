@@ -90,7 +90,7 @@ export const api = {
       first_name: string;
       last_name: string;
     }) =>
-      request<{ message: string; user: User }>("/auth/register", {
+      request<{ message: string; user: User } | User>("/user/register", {
         method: "POST",
         body: JSON.stringify(data),
       }),

@@ -85,6 +85,7 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	// Auth routes
 	authRouter := http.NewServeMux()
 	authRouter.HandleFunc("POST /login", authHandler.LoginHandler)
+	authRouter.HandleFunc("POST /register", userHandler.RegisterHandler)
 	authRouter.HandleFunc("GET /logout", authHandler.LogoutHandler)
 	authRouter.HandleFunc("GET /me", authHandler.MeHandler)
 	authRouter.HandleFunc("GET /refresh", authHandler.RefreshTokenHandler)
