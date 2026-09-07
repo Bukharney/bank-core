@@ -21,6 +21,7 @@ tmp/
 
 # Scratch & Session dumps
 session.txt
+session_*.txt
 scratch/
 
 # OS files

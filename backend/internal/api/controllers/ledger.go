@@ -87,6 +87,18 @@ func (c *LedgerController) GetAccountStatementHandler(w http.ResponseWriter, r *
 
 // GetJournalDetailsHandler returns journal details by UUID
 func (c *LedgerController) GetJournalDetailsHandler(w http.ResponseWriter, r *http.Request) {
+	userIdStr, err := utils.GetUserIdFromRequest(c.Cfg, r, false)
+	if err != nil {
+		responses.Unauthorized(w, err)
+		return
+	}
+
+	userID, err := uuid.Parse(userIdStr)
+	if err != nil {
+		responses.Unauthorized(w, err)
+		return
+	}
+
 	journalIdStr, err := utils.GetIDFromRequest(r, "id")
 	if err != nil {
 		responses.BadRequest(w, err)
@@ -102,6 +114,31 @@ func (c *LedgerController) GetJournalDetailsHandler(w http.ResponseWriter, r *ht
 	journal, err := c.Usecase.GetJournalDetails(journalID)
 	if err != nil {
 		responses.Error(w, http.StatusNotFound, err)
+		return
+	}
+
+	// Verify that the authenticated user owns at least one participating account in the postings
+	accounts, err := c.AccountRepo.GetAccountsByUserID(userID)
+	if err != nil {
+		responses.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	userAccountIDs := make(map[int64]bool, len(accounts))
+	for _, acc := range accounts {
+		userAccountIDs[acc.ID] = true
+	}
+
+	isAuthorized := false
+	for _, posting := range journal.Postings {
+		if userAccountIDs[posting.AccountID] {
+			isAuthorized = true
+			break
+		}
+	}
+
+	if !isAuthorized {
+		responses.Forbidden(w, errors.New("forbidden: access to this journal is restricted to participating account owners"))
 		return
 	}
 

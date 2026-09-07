@@ -56,6 +56,12 @@ func TimeoutMiddleware(next http.Handler) http.Handler {
 // AuthMiddleware checks if the user is authenticated
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Allow CORS preflight requests without authentication
+		if r.Method == http.MethodOptions {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		cfg := config.NewConfig()
 		if _, ok := unprotectedRoutes[r.URL.Path]; ok || strings.HasPrefix(r.URL.Path, "/account/preview/") {
 			next.ServeHTTP(w, r)
@@ -129,9 +135,20 @@ func PanicMiddleware(next http.Handler) http.Handler {
 // CORSMiddleware adds the necessary headers for CORS
 func CORSMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Idempotency-Key")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 
 		next.ServeHTTP(w, r)
 	})
@@ -151,8 +168,8 @@ func ChainMiddleware(middlewares ...func(http.Handler) http.Handler) func(http.H
 var DefaultMiddleware = ChainMiddleware(
 	LoggerMiddleware,
 	PanicMiddleware,
-	AuthMiddleware,
 	CORSMiddleware,
+	AuthMiddleware,
 	TimeoutMiddleware,
 )
 

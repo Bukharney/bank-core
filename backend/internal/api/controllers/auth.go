@@ -73,15 +73,8 @@ func (c *AuthController) RefreshTokenHandler(w http.ResponseWriter, r *http.Requ
 // LogoutHandler handles the logout route
 func (c *AuthController) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	refreshToken, err := utils.ExtractToken(r, "refresh_token")
-	if err != nil {
-		responses.Error(w, http.StatusUnauthorized, err)
-		return
-	}
-
-	err = c.Usecase.Logout(refreshToken)
-	if err != nil {
-		responses.Error(w, http.StatusUnauthorized, err)
-		return
+	if err == nil && refreshToken != "" {
+		_ = c.Usecase.Logout(refreshToken)
 	}
 
 	token := &models.LoginResponse{}
