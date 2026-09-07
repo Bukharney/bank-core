@@ -23,6 +23,7 @@ type Config struct {
 	DB        DBConfig
 	JWTSecret map[bool]string
 	Redis     Redis
+	ATMSecret string
 }
 
 // getEnv retrieves environment variable with a fallback default value
@@ -78,5 +79,6 @@ func NewConfig() *Config {
 			Password: getEnv("REDIS_PASSWORD", "root"),
 			DB:       redisDB,
 		},
+		ATMSecret: getEnv("ATM_SHARED_SECRET", "bank-core-atm-secret-key-2026"),
 	}
 }

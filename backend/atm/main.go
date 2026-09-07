@@ -20,6 +20,25 @@ func getBankCoreURL() string {
 	return "http://localhost:8080"
 }
 
+func getATMSecret() string {
+	if s := os.Getenv("ATM_SHARED_SECRET"); s != "" {
+		return s
+	}
+	return "bank-core-atm-secret-key-2026"
+}
+
+// postToBankCore sends authenticated HTTP requests to Bank Core using M2M secret
+func postToBankCore(path string, payload []byte) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s%s", getBankCoreURL(), path), bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-ATM-Secret", getATMSecret())
+	client := &http.Client{Timeout: 10 * time.Second}
+	return client.Do(req)
+}
+
 // dispenseCash simulates dispensing cash with session ID.
 func dispenseCash(w http.ResponseWriter, r *http.Request, s session.SessionM, atmID int) {
 	var req models.DispenseRequest
@@ -70,7 +89,7 @@ func claimCash(w http.ResponseWriter, r *http.Request, atmID int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-ATM-Secret")
 
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
@@ -96,7 +115,7 @@ func claimCash(w http.ResponseWriter, r *http.Request, atmID int) {
 		"atm_id":       atmID,
 	})
 
-	verifyResp, err := http.Post(fmt.Sprintf("%s/transaction/withdraw/verify", getBankCoreURL()), "application/json", bytes.NewReader(verifyPayload))
+	verifyResp, err := postToBankCore("/transaction/withdraw/verify", verifyPayload)
 	if err != nil {
 		log.Printf("[ATM #%d] Core communication error: %v", atmID, err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -132,25 +151,44 @@ func claimCash(w http.ResponseWriter, r *http.Request, atmID int) {
 
 	log.Printf("[ATM #%d] Verified customer: %s, Amount: %d %s", atmID, verifyData.CustomerName, verifyData.Amount, verifyData.Currency)
 
-	// 2. Physical Dispense Simulation
-	units := int(verifyData.Amount / 100)
-	if units <= 0 {
-		units = 1
-	}
-	_ = simulateDispense(units)
-
-	// 3. Confirm with Bank Core to commit double-entry bookkeeping
+	// 2. Confirm with Bank Core FIRST to commit double-entry ledger before hardware dispense
 	confirmPayload, _ := json.Marshal(map[string]interface{}{
 		"order_id": verifyData.OrderID,
 		"atm_id":   atmID,
 	})
 
-	confirmResp, err := http.Post(fmt.Sprintf("%s/transaction/withdraw/confirm", getBankCoreURL()), "application/json", bytes.NewReader(confirmPayload))
-	if err != nil || confirmResp.StatusCode != http.StatusOK {
-		log.Printf("[ATM #%d] Warning: failed to confirm ledger with Bank Core: %v", atmID, err)
-	} else {
-		defer confirmResp.Body.Close()
+	confirmResp, err := postToBankCore("/transaction/withdraw/confirm", confirmPayload)
+	if err != nil {
+		log.Printf("[ATM #%d] Error communicating with Bank Core during confirm: %v", atmID, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(models.ClaimResponse{
+			Status:  "error",
+			Message: "Failed to confirm transaction with Bank Core. No cash was dispensed.",
+		})
+		return
 	}
+	defer confirmResp.Body.Close()
+
+	if confirmResp.StatusCode != http.StatusOK {
+		var errData struct {
+			Error string `json:"error"`
+		}
+		_ = json.NewDecoder(confirmResp.Body).Decode(&errData)
+		log.Printf("[ATM #%d] Ledger confirmation failed: %s", atmID, errData.Error)
+		w.WriteHeader(confirmResp.StatusCode)
+		json.NewEncoder(w).Encode(models.ClaimResponse{
+			Status:  "error",
+			Message: fmt.Sprintf("Withdrawal rejected: %s. No cash was dispensed.", errData.Error),
+		})
+		return
+	}
+
+	// 3. Physical Dispense Simulation (executed only after ledger debit is confirmed by Bank Core)
+	units := int(verifyData.Amount / 100)
+	if units <= 0 {
+		units = 1
+	}
+	_ = simulateDispense(units)
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(models.ClaimResponse{
@@ -175,7 +213,7 @@ func depositLookup(w http.ResponseWriter, r *http.Request, atmID int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-ATM-Secret")
 
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
@@ -196,7 +234,7 @@ func depositLookup(w http.ResponseWriter, r *http.Request, atmID int) {
 		"phone_number": req.PhoneNumber,
 	})
 
-	resp, err := http.Post(fmt.Sprintf("%s/transaction/atm/deposit/lookup", getBankCoreURL()), "application/json", bytes.NewReader(payload))
+	resp, err := postToBankCore("/transaction/atm/deposit/lookup", payload)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(models.DepositLookupResponse{
@@ -245,7 +283,7 @@ func depositCash(w http.ResponseWriter, r *http.Request, atmID int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-ATM-Secret")
 
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
@@ -274,7 +312,7 @@ func depositCash(w http.ResponseWriter, r *http.Request, atmID int) {
 		"notes":        req.Notes,
 	})
 
-	coreResp, err := http.Post(fmt.Sprintf("%s/transaction/atm/deposit", getBankCoreURL()), "application/json", bytes.NewReader(corePayload))
+	coreResp, err := postToBankCore("/transaction/atm/deposit", corePayload)
 	if err != nil {
 		log.Printf("[ATM #%d] Core communication error: %v", atmID, err)
 		w.WriteHeader(http.StatusInternalServerError)

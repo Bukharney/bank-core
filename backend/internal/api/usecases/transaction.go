@@ -375,7 +375,7 @@ func (u *TransferUsecase) Deposit(userID uuid.UUID, req *models.DepositRequest, 
 	}, nil
 }
 
-// Withdrawal withdraws money from customer account with Two-Phase ATM Hardware Confirmation
+// Withdrawal withdraws money from customer account with Two-Phase ATM Hardware Confirmation & Compensating Reversal
 func (u *TransferUsecase) Withdrawal(userID uuid.UUID, req *models.WithdrawalRequest, idempotencyKey string) (*models.TransferReceipt, error) {
 	if req.Amount <= 0 {
 		return nil, errors.New("withdrawal amount must be greater than zero")
@@ -386,61 +386,15 @@ func (u *TransferUsecase) Withdrawal(userID uuid.UUID, req *models.WithdrawalReq
 		atmID = 1 // Default to ATM #1
 	}
 
-	// -------------------------------------------------------------------------
-	// Phase 1: Pre-check customer balance and account status
-	// -------------------------------------------------------------------------
-	accCheck, err := u.AccountRepo.GetAccountByID(req.AccountID)
-	if err != nil {
-		return nil, fmt.Errorf("account not found: %w", err)
-	}
-	if accCheck.UserID != userID {
-		return nil, ErrAccountNotOwnedByUser
-	}
-	if accCheck.Status != models.AccountStatusActive {
-		return nil, ErrSenderAccountFrozen
-	}
-	if accCheck.Balance < req.Amount {
-		return nil, ErrInsufficientBalance
-	}
-
-	// -------------------------------------------------------------------------
-	// Phase 2: Dispatch Hardware Dispense Command to ATM Machine
-	// -------------------------------------------------------------------------
 	refID := idempotencyKey
 	if refID == "" {
 		refID = utils.TransactionReference()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
-	defer cancel()
-
-	var dispenseResult *atm.DispenseResult
-	if u.ATMClient != nil {
-		dispenseResult, err = u.ATMClient.DispenseCash(ctx, atmID, req.Amount)
-		if err != nil {
-			// Record ATM failure alert in Outbox without deducting any customer funds
-			failPayload, _ := json.Marshal(map[string]interface{}{
-				"account_id":  req.AccountID,
-				"atm_id":      atmID,
-				"amount":      req.Amount,
-				"ref_id":      refID,
-				"error":       err.Error(),
-				"occurred_at": time.Now().UTC(),
-			})
-			_ = u.OutboxRepo.InsertOutboxEvent(&models.OutboxEvent{
-				AggregateType: "ATM_DISPENSE",
-				AggregateID:   fmt.Sprintf("ATM-%d-%s", atmID, refID),
-				EventType:     "atm.dispense_failed",
-				Payload:       failPayload,
-				Status:        models.OutboxStatusPending,
-			})
-
-			return nil, fmt.Errorf("ATM #%d cash dispense failed: %w. No funds were deducted", atmID, err)
-		}
-	}
+	vaultAccountID := int64(100 + atmID)
 
 	// -------------------------------------------------------------------------
-	// Phase 3: Commit Double-Entry Bookkeeping & Vault Deduction
+	// Phase 1: Atomic Pre-Debit & Double-Entry Bookkeeping with Deterministic Lock Ordering
 	// -------------------------------------------------------------------------
 	tx, err := u.Db.Beginx()
 	if err != nil {
@@ -448,24 +402,49 @@ func (u *TransferUsecase) Withdrawal(userID uuid.UUID, req *models.WithdrawalReq
 	}
 	defer tx.Rollback()
 
-	// 1. Lock customer account
-	account, err := u.AccountRepo.GetAccountByIDForUpdate(tx, req.AccountID)
+	// Deadlock Prevention: Deterministic Lock Ordering
+	firstLockID := req.AccountID
+	secondLockID := vaultAccountID
+	if firstLockID > secondLockID {
+		firstLockID, secondLockID = secondLockID, firstLockID
+	}
+
+	firstAcc, err := u.AccountRepo.GetAccountByIDForUpdate(tx, firstLockID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to lock account %d: %w", firstLockID, err)
+	}
+
+	secondAcc, err := u.AccountRepo.GetAccountByIDForUpdate(tx, secondLockID)
+	if err != nil {
+		// Fallback to Central Settlement account (100) if specific vault not found
+		vaultAccountID = 100
+		secondAcc, err = u.AccountRepo.GetAccountByIDForUpdate(tx, vaultAccountID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to lock vault account %d: %w", vaultAccountID, err)
+		}
+	}
+
+	var account, vaultAccount *models.Account
+	if firstAcc.ID == req.AccountID {
+		account = firstAcc
+		vaultAccount = secondAcc
+	} else {
+		account = secondAcc
+		vaultAccount = firstAcc
+	}
+
+	// Validation
+	if account.UserID != userID {
+		return nil, ErrAccountNotOwnedByUser
+	}
+	if account.Status != models.AccountStatusActive {
+		return nil, ErrSenderAccountFrozen
 	}
 	if account.Balance < req.Amount {
 		return nil, ErrInsufficientBalance
 	}
 
-	// 2. Determine per-ATM Vault Account ID (e.g. 101, 102, 103)
-	vaultAccountID := int64(100 + atmID)
-	vaultAccount, err := u.AccountRepo.GetAccountByIDForUpdate(tx, vaultAccountID)
-	if err != nil {
-		// Fallback to Central Settlement account (100) if specific vault not found
-		vaultAccountID = 100
-		vaultAccount, _ = u.AccountRepo.GetAccountByIDForUpdate(tx, vaultAccountID)
-	}
-
+	// Update balances
 	newCustomerBal := account.Balance - req.Amount
 	if err := u.AccountRepo.UpdateBalance(tx, account.ID, newCustomerBal, 0); err != nil {
 		return nil, err
@@ -547,9 +526,81 @@ func (u *TransferUsecase) Withdrawal(userID uuid.UUID, req *models.WithdrawalReq
 		return nil, err
 	}
 
+	// -------------------------------------------------------------------------
+	// Phase 2: Dispatch Hardware Dispense Command to ATM Machine
+	// -------------------------------------------------------------------------
 	dispensedMsg := "SUCCESS"
-	if dispenseResult != nil {
-		dispensedMsg = dispenseResult.Message
+	if u.ATMClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
+		defer cancel()
+
+		dispenseResult, err := u.ATMClient.DispenseCash(ctx, atmID, req.Amount)
+		if err != nil {
+			// Hardware failed! Execute automated compensating reversal transaction to credit customer back
+			revTx, revErr := u.Db.Beginx()
+			if revErr == nil {
+				revJournalID := uuid.New()
+				revJournal := &models.JournalEntry{
+					ID:              revJournalID,
+					ReferenceID:     fmt.Sprintf("REV-%s", refID),
+					TransactionType: models.TransactionTypeReversal,
+					Description:     fmt.Sprintf("Reversal: ATM #%d dispense failed for %s", atmID, refID),
+					Status:          models.JournalStatusPosted,
+					PostedAt:        time.Now().UTC(),
+				}
+				_ = u.LedgerRepo.CreateJournalEntry(revTx, revJournal)
+
+				// Reverse customer debit (credit customer back)
+				_ = u.AccountRepo.UpdateBalance(revTx, account.ID, account.Balance, 0)
+				_ = u.LedgerRepo.CreateLedgerEntry(revTx, &models.LedgerEntry{
+					JournalEntryID: revJournalID,
+					AccountID:      account.ID,
+					EntryType:      models.EntryTypeCredit,
+					Amount:         req.Amount,
+					BalanceAfter:   account.Balance,
+					Sequence:       1,
+				})
+
+				// Reverse vault credit (debit vault back)
+				if vaultAccount != nil {
+					_ = u.AccountRepo.UpdateBalance(revTx, vaultAccount.ID, vaultAccount.Balance, 0)
+					_ = u.LedgerRepo.CreateLedgerEntry(revTx, &models.LedgerEntry{
+						JournalEntryID: revJournalID,
+						AccountID:      vaultAccount.ID,
+						EntryType:      models.EntryTypeDebit,
+						Amount:         req.Amount,
+						BalanceAfter:   vaultAccount.Balance,
+						Sequence:       2,
+					})
+				}
+				_ = revTx.Commit()
+			}
+
+			// Record ATM failure alert in Outbox
+			if u.OutboxRepo != nil {
+				failPayload, _ := json.Marshal(map[string]interface{}{
+					"account_id":  req.AccountID,
+					"atm_id":      atmID,
+					"amount":      req.Amount,
+					"ref_id":      refID,
+					"error":       err.Error(),
+					"occurred_at": time.Now().UTC(),
+				})
+				_ = u.OutboxRepo.InsertOutboxEvent(&models.OutboxEvent{
+					AggregateType: "ATM_DISPENSE",
+					AggregateID:   fmt.Sprintf("ATM-%d-%s", atmID, refID),
+					EventType:     "atm.dispense_failed",
+					Payload:       failPayload,
+					Status:        models.OutboxStatusPending,
+				})
+			}
+
+			return nil, fmt.Errorf("ATM hardware dispense failed: %w. Funds have been automatically reversed to your account", err)
+		}
+
+		if dispenseResult != nil {
+			dispensedMsg = dispenseResult.Message
+		}
 	}
 
 	return &models.TransferReceipt{
@@ -734,25 +785,44 @@ func (u *TransferUsecase) ConfirmCardlessWithdrawal(req *models.ConfirmCardlessW
 		return nil, errors.New("withdrawal order has expired")
 	}
 
-	// 2. Lock customer account & verify balance
-	account, err := u.AccountRepo.GetAccountByIDForUpdate(tx, order.AccountID)
-	if err != nil {
-		return nil, fmt.Errorf("customer account not found: %w", err)
-	}
-	if account.Balance < order.Amount {
-		return nil, ErrInsufficientBalance
-	}
-
-	// 3. Lock per-ATM Vault Account
+	// 2. Lock customer account & per-ATM Vault Account with Deterministic Lock Ordering
 	atmID := req.ATMID
 	if atmID <= 0 {
 		atmID = order.ATMID
 	}
 	vaultAccountID := int64(100 + atmID)
-	vaultAccount, err := u.AccountRepo.GetAccountByIDForUpdate(tx, vaultAccountID)
+
+	firstLockID := order.AccountID
+	secondLockID := vaultAccountID
+	if firstLockID > secondLockID {
+		firstLockID, secondLockID = secondLockID, firstLockID
+	}
+
+	firstAcc, err := u.AccountRepo.GetAccountByIDForUpdate(tx, firstLockID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to lock account %d: %w", firstLockID, err)
+	}
+
+	secondAcc, err := u.AccountRepo.GetAccountByIDForUpdate(tx, secondLockID)
 	if err != nil {
 		vaultAccountID = 100
-		vaultAccount, _ = u.AccountRepo.GetAccountByIDForUpdate(tx, vaultAccountID)
+		secondAcc, err = u.AccountRepo.GetAccountByIDForUpdate(tx, vaultAccountID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to lock vault account %d: %w", vaultAccountID, err)
+		}
+	}
+
+	var account, vaultAccount *models.Account
+	if firstAcc.ID == order.AccountID {
+		account = firstAcc
+		vaultAccount = secondAcc
+	} else {
+		account = secondAcc
+		vaultAccount = firstAcc
+	}
+
+	if account.Balance < order.Amount {
+		return nil, ErrInsufficientBalance
 	}
 
 	// 4. Update balances
@@ -950,21 +1020,39 @@ func (u *TransferUsecase) ATMDeposit(req *models.ATMDepositRequest, idempotencyK
 		return nil, errors.New("no active bank account linked to this phone number")
 	}
 
-	// 2. Lock customer account for update
-	customerAcc, err := u.AccountRepo.GetAccountByIDForUpdate(tx, account.ID)
-	if err != nil {
-		return nil, fmt.Errorf("customer account not found: %w", err)
-	}
-	if customerAcc.Status != models.AccountStatusActive {
-		return nil, ErrReceiverAccountFrozen
+	// 2. Lock customer account & per-ATM Vault Account with Deterministic Lock Ordering
+	vaultAccountID := int64(100 + atmID)
+	firstLockID := account.ID
+	secondLockID := vaultAccountID
+	if firstLockID > secondLockID {
+		firstLockID, secondLockID = secondLockID, firstLockID
 	}
 
-	// 3. Lock per-ATM Vault Account (Cash entered vault, so vault balance increases)
-	vaultAccountID := int64(100 + atmID)
-	vaultAccount, err := u.AccountRepo.GetAccountByIDForUpdate(tx, vaultAccountID)
+	firstAcc, err := u.AccountRepo.GetAccountByIDForUpdate(tx, firstLockID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to lock account %d: %w", firstLockID, err)
+	}
+
+	secondAcc, err := u.AccountRepo.GetAccountByIDForUpdate(tx, secondLockID)
 	if err != nil {
 		vaultAccountID = 100
-		vaultAccount, _ = u.AccountRepo.GetAccountByIDForUpdate(tx, vaultAccountID)
+		secondAcc, err = u.AccountRepo.GetAccountByIDForUpdate(tx, vaultAccountID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to lock vault account %d: %w", vaultAccountID, err)
+		}
+	}
+
+	var customerAcc, vaultAccount *models.Account
+	if firstAcc.ID == account.ID {
+		customerAcc = firstAcc
+		vaultAccount = secondAcc
+	} else {
+		customerAcc = secondAcc
+		vaultAccount = firstAcc
+	}
+
+	if customerAcc.Status != models.AccountStatusActive {
+		return nil, ErrReceiverAccountFrozen
 	}
 
 	// 4. Update balances

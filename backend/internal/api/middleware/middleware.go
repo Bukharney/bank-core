@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"runtime/debug"
 	"strconv"
@@ -16,16 +17,19 @@ import (
 )
 
 var unprotectedRoutes = map[string]bool{
-	"/health":                       true,
-	"/metrics":                      true,
-	"/user/register":                true,
-	"/auth/register":                true,
-	"/auth/login":                   true,
-	"/auth/refresh":                 true,
-	"/auth/logout":                  true,
-	"/auth/test":                    true,
-	"/transaction/withdraw/verify":  true,
-	"/transaction/withdraw/confirm": true,
+	"/health":        true,
+	"/metrics":       true,
+	"/user/register": true,
+	"/auth/register": true,
+	"/auth/login":    true,
+	"/auth/refresh":  true,
+	"/auth/logout":   true,
+	"/auth/test":     true,
+}
+
+var atmMachineRoutes = map[string]bool{
+	"/transaction/withdraw/verify":    true,
+	"/transaction/withdraw/confirm":   true,
 	"/transaction/atm/deposit/lookup": true,
 	"/transaction/atm/deposit":        true,
 }
@@ -63,6 +67,18 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		cfg := config.NewConfig()
+
+		// Machine-to-machine authentication for ATM network endpoints
+		if atmMachineRoutes[r.URL.Path] {
+			secret := r.Header.Get("X-ATM-Secret")
+			if secret == "" || secret != cfg.ATMSecret {
+				responses.Unauthorized(w, errors.New("unauthorized: missing or invalid ATM machine secret key"))
+				return
+			}
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		if _, ok := unprotectedRoutes[r.URL.Path]; ok || strings.HasPrefix(r.URL.Path, "/account/preview/") {
 			next.ServeHTTP(w, r)
 			return
@@ -143,7 +159,7 @@ func CORSMiddleware(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Idempotency-Key")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Idempotency-Key, X-ATM-Secret")
 
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
