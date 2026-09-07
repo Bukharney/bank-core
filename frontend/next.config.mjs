@@ -1,4 +1,22 @@
-const backendUrl = process.env.BACKEND_URL || "http://bank_backend:8080";
+const rawBackendUrl =
+  process.env.BACKEND_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "http://bank_backend:8080"
+    : "http://localhost:8080");
+const backendUrl = rawBackendUrl.replace(/\/:path\*$/, "").replace(/\/+$/, "");
+
+function getAtmDestination(envUrl, port) {
+  let base =
+    envUrl ||
+    (process.env.NODE_ENV === "production"
+      ? `http://bank_atm:${port}`
+      : `http://localhost:${port}`);
+  base = base.replace(/\/:path\*$/, "").replace(/\/+$/, "");
+  if (!base.endsWith("/atm")) {
+    base = `${base}/atm`;
+  }
+  return `${base}/:path*`;
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -7,15 +25,15 @@ const nextConfig = {
     return [
       {
         source: "/api/atm/1/:path*",
-        destination: process.env.ATM_1_URL || "http://bank_atm:8081/atm/:path*",
+        destination: getAtmDestination(process.env.ATM_1_URL, 8081),
       },
       {
         source: "/api/atm/2/:path*",
-        destination: process.env.ATM_2_URL || "http://bank_atm:8082/atm/:path*",
+        destination: getAtmDestination(process.env.ATM_2_URL, 8082),
       },
       {
         source: "/api/atm/3/:path*",
-        destination: process.env.ATM_3_URL || "http://bank_atm:8083/atm/:path*",
+        destination: getAtmDestination(process.env.ATM_3_URL, 8083),
       },
       {
         source: "/api/:path*",
@@ -26,3 +44,4 @@ const nextConfig = {
 };
 
 export default nextConfig;
+
