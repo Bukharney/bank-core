@@ -36,7 +36,7 @@ export default function UserStatementPage() {
   // Pagination State
   const [page, setPage] = useState<number>(0);
   const pageSize = 20;
-  const [hasMore, setHasMore] = useState<boolean>(true);
+  const [totalEntries, setTotalEntries] = useState<number>(0);
 
   const fetchStatement = async (pageNum = page) => {
     if (!activeAccount) return;
@@ -44,8 +44,8 @@ export default function UserStatementPage() {
     try {
       const res = await api.ledger.getStatement(activeAccount.id, pageSize, pageNum * pageSize);
       if (res.data) {
-        setStatement(res.data);
-        setHasMore(res.data.length === pageSize);
+        setStatement(res.data.entries ?? []);
+        setTotalEntries(res.data.total ?? 0);
       }
     } catch (err: any) {
       showToast("Failed to load account transactions", "error");
@@ -344,7 +344,9 @@ export default function UserStatementPage() {
         {/* Pagination Bar */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-vault-border text-xs font-mono">
           <span className="text-slate-500 dark:text-slate-400">
-            Page {page + 1}
+            {totalEntries === 0
+              ? "No entries"
+              : `Showing ${page * pageSize + 1}–${Math.min((page + 1) * pageSize, totalEntries)} of ${totalEntries}`}
           </span>
           <div className="flex items-center gap-1.5">
             <button
@@ -356,10 +358,13 @@ export default function UserStatementPage() {
               <ChevronLeft className="h-3.5 w-3.5" />
               <span>Prev</span>
             </button>
+            <span className="px-3 py-1 text-slate-500 dark:text-slate-400">
+              Page {page + 1} of {Math.max(Math.ceil(totalEntries / pageSize), 1)}
+            </span>
             <button
               type="button"
               onClick={() => handlePageChange(page + 1)}
-              disabled={!hasMore || loading}
+              disabled={page + 1 >= Math.ceil(totalEntries / pageSize) || loading}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-vault-border disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-vault-surface transition"
             >
               <span>Next</span>

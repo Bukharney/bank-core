@@ -238,7 +238,7 @@ func (u *UserUsecase) UpdateRole(adminID, targetUserID uuid.UUID, role string) e
 	return u.Repo.UpdateRole(targetUserID, role)
 }
 
-func (u *UserUsecase) ListUsers(limit, offset int) ([]models.User, int, error) {
+func (u *UserUsecase) ListUsers(search string, role string, limit, offset int) ([]models.User, int, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -248,7 +248,7 @@ func (u *UserUsecase) ListUsers(limit, offset int) ([]models.User, int, error) {
 	if offset < 0 {
 		offset = 0
 	}
-	return u.Repo.ListUsers(limit, offset)
+	return u.Repo.ListUsers(search, role, limit, offset)
 }
 
 

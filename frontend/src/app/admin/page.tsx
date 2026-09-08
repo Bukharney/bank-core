@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useSidebar } from "@/context/SidebarContext";
 import { api } from "@/lib/api";
 import { formatMoney, formatDate } from "@/lib/currency";
-import { LedgerEntry } from "@/lib/types";
+import { LedgerEntry, AdminOverviewResponse, SystemAccountOverview } from "@/lib/types";
 import TreasuryTelemetryCard from "@/components/dashboard/TreasuryTelemetryCard";
 import ATMHardwareHubCard from "@/components/dashboard/ATMHardwareHubCard";
 import {
@@ -25,78 +25,84 @@ import {
   ArrowDownLeft,
 } from "lucide-react";
 
-interface SystemAccount {
-  id: number;
-  account_number: string;
-  label: string;
-  category: "CENTRAL_SETTLEMENT" | "ATM_VAULT";
-  balanceSatang: number;
-  status: "ONLINE" | "SETTLED";
-}
-
 export default function AdminOperationsPage() {
   const { user, activeAccount } = useAuth();
   const { openAtmSimulator } = useSidebar();
   const [recentEntries, setRecentEntries] = useState<LedgerEntry[]>([]);
+  const [overview, setOverview] = useState<AdminOverviewResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [lastHeartbeat, setLastHeartbeat] = useState<string>("");
 
-  const systemAccounts: SystemAccount[] = [
+  const fallbackAccounts: SystemAccountOverview[] = [
     {
       id: 100,
       account_number: "SYS-CASH-SETTLE",
       label: "Central Clearing & Settlement",
       category: "CENTRAL_SETTLEMENT",
-      balanceSatang: 10000000000,
-      status: "ONLINE",
+      balance_satang: 10000000000,
+      currency: "THB",
+      status: "ACTIVE",
     },
     {
       id: 101,
       account_number: "ATM-VAULT-001",
-      label: "Terminal #1 Vault (Port :8081)",
+      label: "Terminal #1 Vault",
       category: "ATM_VAULT",
-      balanceSatang: 500000000,
-      status: "ONLINE",
+      balance_satang: 500000000,
+      currency: "THB",
+      status: "ACTIVE",
     },
     {
       id: 102,
       account_number: "ATM-VAULT-002",
-      label: "Terminal #2 Vault (Port :8082)",
+      label: "Terminal #2 Vault",
       category: "ATM_VAULT",
-      balanceSatang: 500000000,
-      status: "ONLINE",
+      balance_satang: 500000000,
+      currency: "THB",
+      status: "ACTIVE",
     },
     {
       id: 103,
       account_number: "ATM-VAULT-003",
-      label: "Terminal #3 Vault (Port :8083)",
+      label: "Terminal #3 Vault",
       category: "ATM_VAULT",
-      balanceSatang: 500000000,
-      status: "ONLINE",
+      balance_satang: 500000000,
+      currency: "THB",
+      status: "ACTIVE",
     },
   ];
 
-  const fetchRecentLedger = async () => {
-    if (!activeAccount) return;
+  const systemAccounts = overview?.system_accounts || fallbackAccounts;
+
+  const fetchOperationsData = async () => {
     setLoading(true);
     try {
-      const res = await api.ledger.getStatement(activeAccount.id, 10, 0);
-      if (res.data) {
-        setRecentEntries(res.data);
+      const [overviewRes, statementRes] = await Promise.allSettled([
+        api.admin.getOverview(),
+        activeAccount ? api.ledger.getStatement(activeAccount.id, 10, 0) : Promise.resolve(null),
+      ]);
+
+      if (overviewRes.status === "fulfilled" && overviewRes.value.data) {
+        setOverview(overviewRes.value.data);
+      }
+      if (statementRes.status === "fulfilled" && statementRes.value && statementRes.value.data) {
+        setRecentEntries(statementRes.value.data.entries ?? []);
       }
       setLastHeartbeat(new Date().toLocaleTimeString());
     } catch (err) {
-      console.error("Failed to load operations statement", err);
+      console.error("Failed to load operations data", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRecentLedger();
+    fetchOperationsData();
   }, [activeAccount]);
 
-  const totalSystemLiquidity = systemAccounts.reduce((sum, a) => sum + a.balanceSatang, 0);
+  const totalSystemLiquidity =
+    overview?.total_system_liquidity ??
+    systemAccounts.reduce((sum, a) => sum + a.balance_satang, 0);
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
@@ -124,7 +130,7 @@ export default function AdminOperationsPage() {
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={fetchRecentLedger}
+            onClick={fetchOperationsData}
             disabled={loading}
             className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 dark:border-vault-border bg-white dark:bg-vault-surface px-3 py-1.5 text-xs font-mono font-semibold text-slate-700 dark:text-slate-300 hover:border-slate-400 dark:hover:border-vault-highlight transition shadow-xs"
           >
@@ -142,31 +148,35 @@ export default function AdminOperationsPage() {
         </div>
       </div>
 
-      {/* Primary Technical Telemetry Ribbon (From Skills Standard) */}
+      {/* Primary Technical Telemetry Ribbon */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-1">
+        <div className={`rounded-2xl border p-4 space-y-1 ${
+          overview?.ledger_health?.invariant_ok !== false
+            ? "border-emerald-500/30 bg-emerald-500/5"
+            : "border-rose-500/30 bg-rose-500/5"
+        }`}>
           <div className="flex items-center justify-between text-xs font-mono font-bold text-emerald-700 dark:text-ledger-credit">
             <span>CONSERVATION INVARIANT</span>
             <ShieldCheck className="h-4 w-4" />
           </div>
           <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white">
-            0 Satang Drift
+            {overview?.ledger_health ? `${Math.abs(overview.ledger_health.leakage_satang)} Satang Drift` : "0 Satang Drift"}
           </div>
           <div className="text-[10px] font-mono text-emerald-600 dark:text-ledger-credit">
-            Σ Debits ≡ Σ Credits Verified
+            {overview?.ledger_health?.invariant_ok !== false ? "Σ Debits ≡ Σ Credits Verified" : "INVARIANT DRIFT DETECTED"}
           </div>
         </div>
 
         <div className="rounded-2xl border border-[#E2DDD0] dark:border-vault-border bg-white dark:bg-vault-card p-4 space-y-1 shadow-xs">
           <div className="flex items-center justify-between text-xs font-mono font-bold text-slate-500 dark:text-slate-400">
-            <span>ENGINE LATENCY</span>
+            <span>24H ACTIVITY & VOLUME</span>
             <Zap className="h-4 w-4 text-bullion-500" />
           </div>
           <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white">
-            &lt; 15 ms
+            {overview ? `${overview.transactions_24h_count} Postings` : "< 15 ms"}
           </div>
           <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
-            PostgreSQL Write + WAL Fsync
+            {overview ? `Vol: ${formatMoney(overview.transactions_24h_volume)}` : "PostgreSQL Write + WAL Fsync"}
           </div>
         </div>
 
@@ -176,10 +186,10 @@ export default function AdminOperationsPage() {
             <Activity className="h-4 w-4 text-indigo-500" />
           </div>
           <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white">
-            Realtime Live
+            {overview ? `${overview.ledger_health.pending_outbox_events} Pending` : "Realtime Live"}
           </div>
           <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
-            Outbox Publisher Online
+            {overview?.ledger_health?.pending_outbox_events === 0 ? "Outbox Worker Caught Up" : "Outbox Publisher Online"}
           </div>
         </div>
 
@@ -191,8 +201,8 @@ export default function AdminOperationsPage() {
           <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white truncate">
             {formatMoney(totalSystemLiquidity)}
           </div>
-          <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
-            100% Fully Backed Reserves
+          <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400 truncate">
+            {overview ? `Cust: ${formatMoney(overview.total_customer_deposits)} (${overview.active_accounts_count} Accts)` : "100% Fully Backed Reserves"}
           </div>
         </div>
       </div>
@@ -211,7 +221,7 @@ export default function AdminOperationsPage() {
                 </h2>
               </div>
               <span className="text-[10px] font-mono font-semibold text-slate-500 dark:text-slate-400">
-                4 Core Accounts
+                {systemAccounts.length} Core Accounts
               </span>
             </div>
 
@@ -234,11 +244,11 @@ export default function AdminOperationsPage() {
 
                   <div className="text-right shrink-0">
                     <div className="font-mono font-bold text-sm text-slate-900 dark:text-white tabular-nums">
-                      {formatMoney(acc.balanceSatang)}
+                      {formatMoney(acc.balance_satang)}
                     </div>
                     <span className="inline-flex items-center gap-1 text-[9px] font-mono text-emerald-600 dark:text-ledger-credit">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      ACTIVE
+                      {acc.status}
                     </span>
                   </div>
                 </div>
@@ -320,7 +330,7 @@ export default function AdminOperationsPage() {
           <ATMHardwareHubCard />
 
           {/* Treasury Telemetry Card */}
-          <TreasuryTelemetryCard />
+          <TreasuryTelemetryCard health={overview?.ledger_health} />
         </div>
       </div>
     </div>

@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSidebar } from "@/context/SidebarContext";
+import { api } from "@/lib/api";
 import { formatMoney } from "@/lib/currency";
+import { AdminOverviewResponse } from "@/lib/types";
 import {
   Server,
   Cpu,
@@ -33,6 +35,30 @@ interface ATMNode {
 export default function AdminNodesPage() {
   const { openAtmSimulator } = useSidebar();
   const [refreshing, setRefreshing] = useState(false);
+  const [overview, setOverview] = useState<AdminOverviewResponse | null>(null);
+
+  const fetchNodesData = async () => {
+    setRefreshing(true);
+    try {
+      const res = await api.admin.getOverview();
+      if (res.data) {
+        setOverview(res.data);
+      }
+    } catch (err) {
+      console.error("Failed to load node telemetry", err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNodesData();
+  }, []);
+
+  const getVaultBalance = (accountNum: string) => {
+    const acc = overview?.system_accounts?.find((a) => a.account_number === accountNum);
+    return acc ? acc.balance_satang : 500000000;
+  };
 
   const nodes: ATMNode[] = [
     {
@@ -40,7 +66,7 @@ export default function AdminNodesPage() {
       name: "Terminal ATM-01",
       port: 8081,
       vaultAccount: "ATM-VAULT-001 (#101)",
-      cashLevelSatang: 500000000,
+      cashLevelSatang: getVaultBalance("ATM-VAULT-001"),
       cassetteStatus: "NORMAL",
       cdmReady: true,
       dispenserArmed: true,
@@ -51,7 +77,7 @@ export default function AdminNodesPage() {
       name: "Terminal ATM-02",
       port: 8082,
       vaultAccount: "ATM-VAULT-002 (#102)",
-      cashLevelSatang: 500000000,
+      cashLevelSatang: getVaultBalance("ATM-VAULT-002"),
       cassetteStatus: "NORMAL",
       cdmReady: true,
       dispenserArmed: true,
@@ -62,18 +88,13 @@ export default function AdminNodesPage() {
       name: "Terminal ATM-03",
       port: 8083,
       vaultAccount: "ATM-VAULT-003 (#103)",
-      cashLevelSatang: 500000000,
+      cashLevelSatang: getVaultBalance("ATM-VAULT-003"),
       cassetteStatus: "NORMAL",
       cdmReady: true,
       dispenserArmed: true,
       uptime: "100.00%",
     },
   ];
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 600);
-  };
 
   const totalVaultCash = nodes.reduce((acc, n) => acc + n.cashLevelSatang, 0);
 
@@ -103,7 +124,7 @@ export default function AdminNodesPage() {
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={handleRefresh}
+            onClick={fetchNodesData}
             disabled={refreshing}
             className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 dark:border-vault-border bg-white dark:bg-vault-surface px-3 py-1.5 text-xs font-mono font-semibold text-slate-700 dark:text-slate-300 hover:border-slate-400 dark:hover:border-vault-highlight transition shadow-xs"
           >

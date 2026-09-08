@@ -28,6 +28,7 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	ledgerRepository := repositories.NewLedgerRepository(pg, rdb, config)
 	outboxRepository := repositories.NewOutboxRepository(pg, rdb, config)
 	idempotencyRepository := repositories.NewIdempotencyRepository(pg, rdb, config)
+	adminRepository := repositories.NewAdminRepository(pg, config)
 
 	// Usecases
 	userUseCase := usecases.NewUserUsecase(config, userRepository, accountRepository)
@@ -35,11 +36,12 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	accountUseCase := usecases.NewAccountUsecase(config, accountRepository, userRepository)
 	ledgerUseCase := usecases.NewLedgerUsecase(config, pg, ledgerRepository, accountRepository)
 	transferUseCase := usecases.NewTransferUsecase(config, pg, accountRepository, userRepository, ledgerRepository, outboxRepository, atmClient)
+	adminUseCase := usecases.NewAdminUsecase(config, adminRepository, userUseCase)
 
 	// Controllers
 	userHandler := controllers.NewUserController(config, userUseCase)
 	authHandler := controllers.NewAuthController(config, authUseCase)
-	adminHandler := controllers.NewAdminController(config, userUseCase)
+	adminHandler := controllers.NewAdminController(config, adminUseCase)
 	accountHandler := controllers.NewAccountController(config, accountUseCase)
 	transactionHandler := controllers.NewTransactionController(config, transferUseCase)
 	ledgerHandler := controllers.NewLedgerController(config, ledgerUseCase, accountRepository)
@@ -47,11 +49,12 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	// Idempotency Middleware for mutating operations
 	idempotencyMiddleware := middleware.IdempotencyMiddleware(idempotencyRepository, config, 30*time.Second)
 
-	// Admin routes (Protected by Admin Role requirement)
+	// Admin routes (Protected by Admin and Auditor roles; mutations restricted to Admin)
 	adminRouter := http.NewServeMux()
-	adminRouter.HandleFunc("GET /users", adminHandler.ListUsersHandler)
-	adminRouter.HandleFunc("PATCH /users/{id}/role", adminHandler.UpdateUserRoleHandler)
-	handler.Handle("/admin/", http.StripPrefix("/admin", middleware.RequireRoles(models.UserRoleAdmin)(adminRouter)))
+	adminRouter.HandleFunc("GET /overview", adminHandler.GetAdminOverviewHandler)
+	adminRouter.HandleFunc("GET /users", middleware.RequireRoles(models.UserRoleAdmin)(http.HandlerFunc(adminHandler.ListUsersHandler)).ServeHTTP)
+	adminRouter.HandleFunc("PATCH /users/{id}/role", middleware.RequireRoles(models.UserRoleAdmin)(http.HandlerFunc(adminHandler.UpdateUserRoleHandler)).ServeHTTP)
+	handler.Handle("/admin/", http.StripPrefix("/admin", middleware.RequireRoles(models.UserRoleAdmin, models.UserRoleAuditor)(adminRouter)))
 
 	// Transaction routes (Protected by Idempotency Gateway)
 	transactionRouter := http.NewServeMux()

@@ -76,7 +76,7 @@ export default function DashboardPage() {
       try {
         const res = await api.ledger.getStatement(activeAccount.id, 8, 0);
         if (res.data) {
-          setRecentTransactions(res.data);
+          setRecentTransactions(res.data.entries ?? []);
         }
       } catch (err) {
         console.error("Failed to load recent ledger statement", err);

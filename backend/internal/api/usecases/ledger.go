@@ -116,9 +116,18 @@ func (u *LedgerUsecase) PostJournal(tx *sqlx.Tx, req *models.CreateJournalReques
 	return journal, nil
 }
 
-func (u *LedgerUsecase) GetAccountStatement(accountID int64, limit int, offset int) ([]*models.LedgerEntry, error) {
-	return u.LedgerRepo.GetLedgerEntriesByAccountID(accountID, limit, offset)
+func (u *LedgerUsecase) GetAccountStatement(accountID int64, filter models.LedgerStatementFilter, limit int, offset int) ([]*models.LedgerEntry, int64, error) {
+	total, err := u.LedgerRepo.CountLedgerEntriesByAccountID(accountID, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+	entries, err := u.LedgerRepo.GetLedgerEntriesByAccountID(accountID, filter, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	return entries, total, nil
 }
+
 
 func (u *LedgerUsecase) GetJournalDetails(journalID uuid.UUID) (*models.JournalEntry, error) {
 	journal, err := u.LedgerRepo.GetJournalByID(journalID)

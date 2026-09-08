@@ -3,6 +3,8 @@ package repositories
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/bukharney/bank-core/internal/api/models"
@@ -200,21 +202,45 @@ func (r *UserRepository) UpdateRole(id uuid.UUID, role string) error {
 	return nil
 }
 
-func (r *UserRepository) ListUsers(limit, offset int) ([]models.User, int, error) {
+func (r *UserRepository) ListUsers(search string, role string, limit, offset int) ([]models.User, int, error) {
+	search = strings.TrimSpace(search)
+	role = strings.TrimSpace(strings.ToLower(role))
+
+	baseWhere := "WHERE 1=1"
+	args := []interface{}{}
+	argIdx := 1
+
+	if search != "" {
+		baseWhere += fmt.Sprintf(" AND (username ILIKE $%d OR email ILIKE $%d OR first_name ILIKE $%d OR last_name ILIKE $%d)", argIdx, argIdx, argIdx, argIdx)
+		args = append(args, "%"+search+"%")
+		argIdx++
+	}
+
+	if role != "" && role != "all" {
+		baseWhere += fmt.Sprintf(" AND role = $%d", argIdx)
+		args = append(args, role)
+		argIdx++
+	}
+
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM users %s", baseWhere)
 	var total int
-	err := r.Db.Get(&total, `SELECT COUNT(*) FROM users`)
+	err := r.Db.Get(&total, countQuery, args...)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	users := []models.User{}
-	query := `
+	selectQuery := fmt.Sprintf(`
 		SELECT id, username, email, phone_number, password_hash, pin_hash, pin_failed_attempts, first_name, last_name, role, status, created_at, updated_at
 		FROM users
+		%s
 		ORDER BY created_at DESC
-		LIMIT $1 OFFSET $2
-	`
-	err = r.Db.Select(&users, query, limit, offset)
+		LIMIT $%d OFFSET $%d
+	`, baseWhere, argIdx, argIdx+1)
+
+	selectArgs := append(args, limit, offset)
+
+	users := []models.User{}
+	err = r.Db.Select(&users, selectQuery, selectArgs...)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -14,6 +14,7 @@ import {
   ClaimResponse,
   ATMDepositLookupResponse,
   ATMDepositResponse,
+  AdminOverviewResponse,
 } from "./types";
 
 const API_BASE = "/api";
@@ -256,22 +257,62 @@ export const api = {
   },
 
   ledger: {
-    getStatement: (accountId: number, limit: number = 20, offset: number = 0) =>
-      request<LedgerEntry[]>(
-        `/ledger/statement/${accountId}?limit=${limit}&offset=${offset}`,
+    getStatement: (
+      accountId: number,
+      limit: number = 20,
+      offset: number = 0,
+      filters?: {
+        entryType?: string;
+        startDate?: string;
+        endDate?: string;
+        q?: string;
+      }
+    ) => {
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+      });
+      if (filters?.entryType && filters.entryType !== "ALL") {
+        params.append("entry_type", filters.entryType);
+      }
+      if (filters?.startDate) params.append("start_date", filters.startDate);
+      if (filters?.endDate) params.append("end_date", filters.endDate);
+      if (filters?.q && filters.q.trim() !== "") {
+        params.append("q", filters.q.trim());
+      }
+
+      return request<{ entries: LedgerEntry[]; total: number; limit: number; offset: number }>(
+        `/ledger/statement/${accountId}?${params.toString()}`,
         { method: "GET" }
-      ),
+      );
+    },
 
     getJournal: (journalId: string) =>
       request<JournalEntry>(`/ledger/journal/${journalId}`, { method: "GET" }),
   },
 
   admin: {
-    listUsers: (limit: number = 20, offset: number = 0) =>
-      request<PaginatedUsersResponse>(
-        `/admin/users?limit=${limit}&offset=${offset}`,
+    getOverview: () =>
+      request<AdminOverviewResponse>("/admin/overview", { method: "GET" }),
+
+    listUsers: (
+      limit: number = 20,
+      offset: number = 0,
+      q?: string,
+      role?: string
+    ) => {
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        offset: offset.toString(),
+      });
+      if (q && q.trim() !== "") params.append("q", q.trim());
+      if (role && role !== "ALL") params.append("role", role);
+
+      return request<PaginatedUsersResponse>(
+        `/admin/users?${params.toString()}`,
         { method: "GET" }
-      ),
+      );
+    },
 
     updateUserRole: (userId: string, role: UserRole) =>
       request<{ message: string; role: string }>(

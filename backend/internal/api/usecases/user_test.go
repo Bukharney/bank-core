@@ -113,9 +113,12 @@ func (m *mockUserRepo) UpdateRole(id uuid.UUID, role string) error {
 	return errors.New("not found")
 }
 
-func (m *mockUserRepo) ListUsers(limit, offset int) ([]models.User, int, error) {
+func (m *mockUserRepo) ListUsers(search string, role string, limit, offset int) ([]models.User, int, error) {
 	list := []models.User{}
 	for _, u := range m.users {
+		if role != "" && role != "all" && u.Role != role {
+			continue
+		}
 		list = append(list, *u)
 	}
 	return list, len(list), nil

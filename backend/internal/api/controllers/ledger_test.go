@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,11 +26,18 @@ func (m *mockLedgerUsecase) PostJournal(tx *sqlx.Tx, req *models.CreateJournalRe
 	return nil, nil
 }
 
-func (m *mockLedgerUsecase) GetAccountStatement(accountID int64, limit int, offset int) ([]*models.LedgerEntry, error) {
+func (m *mockLedgerUsecase) GetAccountStatement(accountID int64, filter models.LedgerStatementFilter, limit int, offset int) ([]*models.LedgerEntry, int64, error) {
 	if entries, ok := m.statements[accountID]; ok {
-		return entries, nil
+		res := []*models.LedgerEntry{}
+		for _, e := range entries {
+			if filter.EntryType != "" && string(e.EntryType) != strings.ToUpper(filter.EntryType) {
+				continue
+			}
+			res = append(res, e)
+		}
+		return res, int64(len(res)), nil
 	}
-	return []*models.LedgerEntry{}, nil
+	return []*models.LedgerEntry{}, 0, nil
 }
 
 func (m *mockLedgerUsecase) GetJournalDetails(journalID uuid.UUID) (*models.JournalEntry, error) {
@@ -147,12 +155,63 @@ func TestGetAccountStatementHandler_OwnerAccess(t *testing.T) {
 		t.Fatalf("expected status 200 for owner, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var entries []*models.LedgerEntry
-	if err := json.Unmarshal(w.Body.Bytes(), &entries); err != nil {
-		t.Fatalf("failed to decode entries: %v", err)
+	var res struct {
+		Entries []*models.LedgerEntry `json:"entries"`
+		Total   int64                 `json:"total"`
+		Limit   int                   `json:"limit"`
+		Offset  int                   `json:"offset"`
 	}
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(entries))
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(res.Entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(res.Entries))
+	}
+	if res.Total != 1 {
+		t.Fatalf("expected total 1, got %d", res.Total)
+	}
+}
+
+func TestGetAccountStatementHandler_FilterEntryType(t *testing.T) {
+	cfg, uc, repo, ctrl := setupLedgerControllerTest()
+
+	ownerID := uuid.New()
+	token, _ := utils.GenerateToken(cfg, ownerID, models.UserRoleUser, false)
+
+	repo.accounts[10] = &models.Account{
+		ID:            10,
+		AccountNumber: "1234567890",
+		UserID:        ownerID,
+	}
+
+	uc.statements[10] = []*models.LedgerEntry{
+		{ID: 1, AccountID: 10, EntryType: models.EntryTypeDebit, Amount: 1000},
+		{ID: 2, AccountID: 10, EntryType: models.EntryTypeCredit, Amount: 2000},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/ledger/statement/10?entry_type=DEBIT", nil)
+	req.SetPathValue("id", "10")
+	req.AddCookie(&http.Cookie{Name: "access_token", Value: token})
+	w := httptest.NewRecorder()
+
+	ctrl.GetAccountStatementHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var res struct {
+		Entries []*models.LedgerEntry `json:"entries"`
+		Total   int64                 `json:"total"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if res.Total != 1 || len(res.Entries) != 1 {
+		t.Fatalf("expected 1 DEBIT entry, got %d", res.Total)
+	}
+	if res.Entries[0].EntryType != models.EntryTypeDebit {
+		t.Fatalf("expected DEBIT entry, got %s", res.Entries[0].EntryType)
 	}
 }
 

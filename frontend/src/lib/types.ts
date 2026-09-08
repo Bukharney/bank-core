@@ -148,3 +148,33 @@ export interface JournalEntry {
   created_at: string;
   postings?: LedgerEntry[];
 }
+
+export interface SystemAccountOverview {
+  id: number;
+  account_number: string;
+  label: string;
+  category: "CENTRAL_SETTLEMENT" | "ATM_VAULT" | string;
+  balance_satang: number;
+  currency: string;
+  status: string;
+}
+
+export interface LedgerHealthStatus {
+  invariant_ok: boolean;
+  total_debits: number;
+  total_credits: number;
+  leakage_satang: number;
+  pending_outbox_events: number;
+}
+
+export interface AdminOverviewResponse {
+  system_accounts: SystemAccountOverview[];
+  total_system_liquidity: number;
+  total_customer_deposits: number;
+  active_accounts_count: number;
+  total_users_count: number;
+  transactions_24h_count: number;
+  transactions_24h_volume: number;
+  ledger_health: LedgerHealthStatus;
+}
+

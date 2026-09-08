@@ -84,14 +84,33 @@ func (c *LedgerController) GetAccountStatementHandler(w http.ResponseWriter, r *
 		}
 	}
 
-	entries, err := c.Usecase.GetAccountStatement(accountID, limit, offset)
+	filter := models.LedgerStatementFilter{
+		EntryType: r.URL.Query().Get("entry_type"),
+		StartDate: r.URL.Query().Get("start_date"),
+		EndDate:   r.URL.Query().Get("end_date"),
+		Query:     r.URL.Query().Get("q"),
+	}
+	if filter.EntryType == "" {
+		filter.EntryType = r.URL.Query().Get("type")
+	}
+	if filter.Query == "" {
+		filter.Query = r.URL.Query().Get("search")
+	}
+
+	entries, total, err := c.Usecase.GetAccountStatement(accountID, filter, limit, offset)
 	if err != nil {
 		responses.Error(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	responses.JSON(w, http.StatusOK, entries)
+	responses.JSON(w, http.StatusOK, map[string]interface{}{
+		"entries": entries,
+		"total":   total,
+		"limit":   limit,
+		"offset":  offset,
+	})
 }
+
 
 // GetJournalDetailsHandler returns journal details by UUID
 func (c *LedgerController) GetJournalDetailsHandler(w http.ResponseWriter, r *http.Request) {

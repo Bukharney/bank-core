@@ -86,7 +86,7 @@ type UserRepository interface {
 	ResetPinFailedAttempts(id uuid.UUID) error
 	IncrementPinFailedAttempts(id uuid.UUID) (int, error)
 	UpdateRole(id uuid.UUID, role string) error
-	ListUsers(limit, offset int) ([]User, int, error)
+	ListUsers(search string, role string, limit, offset int) ([]User, int, error)
 }
 
 type UserUsecase interface {
@@ -97,7 +97,7 @@ type UserUsecase interface {
 	SetPin(userID uuid.UUID, req *SetPinRequest) error
 	VerifyPin(userID uuid.UUID, pin string) error
 	UpdateRole(adminID, targetUserID uuid.UUID, role string) error
-	ListUsers(limit, offset int) ([]User, int, error)
+	ListUsers(search string, role string, limit, offset int) ([]User, int, error)
 }
 
 

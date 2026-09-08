@@ -16,15 +16,26 @@ import (
 type AdminController struct {
 	Cfg      *config.Config
 	Validate *validator.Validate
-	Usecase  models.UserUsecase
+	Usecase  models.AdminUsecase
 }
 
-func NewAdminController(cfg *config.Config, usecase models.UserUsecase) *AdminController {
+func NewAdminController(cfg *config.Config, usecase models.AdminUsecase) *AdminController {
 	return &AdminController{
 		Cfg:      cfg,
 		Validate: validator.New(),
 		Usecase:  usecase,
 	}
+}
+
+// GetAdminOverviewHandler returns live system balances, liquidity metrics, and ledger invariant health
+func (c *AdminController) GetAdminOverviewHandler(w http.ResponseWriter, r *http.Request) {
+	overview, err := c.Usecase.GetOverview()
+	if err != nil {
+		responses.Error(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	responses.JSON(w, http.StatusOK, overview)
 }
 
 // ListUsersHandler returns a paginated list of all users
@@ -43,7 +54,13 @@ func (c *AdminController) ListUsersHandler(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	users, total, err := c.Usecase.ListUsers(limit, offset)
+	search := r.URL.Query().Get("q")
+	if search == "" {
+		search = r.URL.Query().Get("search")
+	}
+	role := r.URL.Query().Get("role")
+
+	users, total, err := c.Usecase.ListUsers(search, role, limit, offset)
 	if err != nil {
 		responses.Error(w, http.StatusInternalServerError, err)
 		return

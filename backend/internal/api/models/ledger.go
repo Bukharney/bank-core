@@ -96,17 +96,25 @@ func (r *CreateJournalRequest) ValidateDoubleEntry() error {
 	return nil
 }
 
+type LedgerStatementFilter struct {
+	EntryType string `json:"entry_type"`
+	StartDate string `json:"start_date"`
+	EndDate   string `json:"end_date"`
+	Query     string `json:"q"`
+}
+
 type LedgerRepository interface {
 	CreateJournalEntry(tx *sqlx.Tx, journal *JournalEntry) error
 	CreateLedgerEntry(tx *sqlx.Tx, entry *LedgerEntry) error
 	GetJournalByID(id uuid.UUID) (*JournalEntry, error)
 	GetJournalByReferenceID(refID string) (*JournalEntry, error)
-	GetLedgerEntriesByAccountID(accountID int64, limit int, offset int) ([]*LedgerEntry, error)
+	GetLedgerEntriesByAccountID(accountID int64, filter LedgerStatementFilter, limit int, offset int) ([]*LedgerEntry, error)
+	CountLedgerEntriesByAccountID(accountID int64, filter LedgerStatementFilter) (int64, error)
 	GetPostingsByJournalID(journalID uuid.UUID) ([]*LedgerEntry, error)
 }
 
 type LedgerUsecase interface {
 	PostJournal(tx *sqlx.Tx, req *CreateJournalRequest) (*JournalEntry, error)
-	GetAccountStatement(accountID int64, limit int, offset int) ([]*LedgerEntry, error)
+	GetAccountStatement(accountID int64, filter LedgerStatementFilter, limit int, offset int) ([]*LedgerEntry, int64, error)
 	GetJournalDetails(journalID uuid.UUID) (*JournalEntry, error)
 }

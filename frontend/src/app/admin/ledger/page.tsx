@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { api } from "@/lib/api";
-import { JournalEntry, LedgerEntry } from "@/lib/types";
+import { JournalEntry, LedgerEntry, AdminOverviewResponse, SystemAccountOverview } from "@/lib/types";
 import { formatMoney, formatDate, formatAccountNumber } from "@/lib/currency";
 import { getAccountMeta } from "@/lib/accountMeta";
 import {
@@ -29,10 +29,14 @@ import {
 } from "lucide-react";
 
 export default function AdminLedgerPage() {
-  const { accounts, activeAccount, setActiveAccount } = useAuth();
+  const { accounts, activeAccount } = useAuth();
   const { showToast } = useToast();
 
   const [statement, setStatement] = useState<LedgerEntry[]>([]);
+  const [systemAccounts, setSystemAccounts] = useState<SystemAccountOverview[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
+  const [overview, setOverview] = useState<AdminOverviewResponse | null>(null);
+
   const [filterType, setFilterType] = useState<"ALL" | "DEBIT" | "CREDIT">("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [startDate, setStartDate] = useState<string>("");
@@ -42,35 +46,92 @@ export default function AdminLedgerPage() {
 
   // Pagination State
   const [page, setPage] = useState<number>(0);
-  const pageSize = 25;
-  const [hasMore, setHasMore] = useState<boolean>(true);
+  const pageSize = 20;
+  const [totalEntries, setTotalEntries] = useState<number>(0);
 
-  const fetchStatement = async (pageNum = page) => {
-    if (!activeAccount) return;
+  // Load system accounts on mount
+  useEffect(() => {
+    const loadOverview = async () => {
+      try {
+        const res = await api.admin.getOverview();
+        if (res.data) {
+          setOverview(res.data);
+          setSystemAccounts(res.data.system_accounts);
+          // Default to ATM-VAULT-001 (id: 101) or first system account
+          if (!selectedAccountId) {
+            const defaultAcc = res.data.system_accounts.find((a) => a.id === 101) || res.data.system_accounts[0];
+            if (defaultAcc) {
+              setSelectedAccountId(defaultAcc.id);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load overview in ledger page", err);
+      }
+    };
+    loadOverview();
+  }, []);
+
+  // Set fallback selectedAccountId if not yet set
+  useEffect(() => {
+    if (!selectedAccountId && activeAccount) {
+      setSelectedAccountId(activeAccount.id);
+    }
+  }, [activeAccount]);
+
+  const fetchStatement = async (
+    targetId: number,
+    pageNum = page,
+    type = filterType,
+    q = searchQuery,
+    from = startDate,
+    to = endDate
+  ) => {
     setLoading(true);
     try {
-      const res = await api.ledger.getStatement(activeAccount.id, pageSize, pageNum * pageSize);
+      const res = await api.ledger.getStatement(targetId, pageSize, pageNum * pageSize, {
+        entryType: type,
+        q,
+        startDate: from,
+        endDate: to,
+      });
       if (res.data) {
-        setStatement(res.data);
-        setHasMore(res.data.length === pageSize);
+        setStatement(res.data.entries ?? []);
+        setTotalEntries(res.data.total ?? 0);
       }
-    } catch (err: any) {
+    } catch {
       showToast("Failed to load ledger postings", "error");
     } finally {
       setLoading(false);
     }
   };
 
+  // Debounced server fetch on account, type, search, or date change (350ms)
   useEffect(() => {
-    setPage(0);
-    fetchStatement(0);
-  }, [activeAccount]);
+    if (!selectedAccountId) return;
+    const timer = setTimeout(() => {
+      setPage(0);
+      fetchStatement(selectedAccountId, 0, filterType, searchQuery, startDate, endDate);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [selectedAccountId, filterType, searchQuery, startDate, endDate]);
 
   const handlePageChange = (newPage: number) => {
-    if (newPage < 0) return;
+    if (newPage < 0 || !selectedAccountId) return;
     setPage(newPage);
-    fetchStatement(newPage);
+    fetchStatement(selectedAccountId, newPage, filterType, searchQuery, startDate, endDate);
   };
+
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setFilterType("ALL");
+    setStartDate("");
+    setEndDate("");
+  };
+
+  const hasActiveFilters =
+    filterType !== "ALL" || searchQuery.trim() !== "" || startDate !== "" || endDate !== "";
 
   const handleOpenJournal = async (journalId: string) => {
     try {
@@ -78,31 +139,10 @@ export default function AdminLedgerPage() {
       if (res.data) {
         setSelectedJournal(res.data);
       }
-    } catch (err: any) {
+    } catch {
       showToast("Failed to fetch journal details", "error");
     }
   };
-
-  const filteredStatement = statement.filter((entry) => {
-    if (filterType !== "ALL" && entry.entry_type !== filterType) {
-      return false;
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchUuid = entry.journal_entry_id.toLowerCase().includes(q);
-      const matchAmount = entry.amount.toString().includes(q);
-      if (!matchUuid && !matchAmount) return false;
-    }
-    if (startDate) {
-      const entryDate = new Date(entry.created_at).toISOString().split("T")[0];
-      if (entryDate < startDate) return false;
-    }
-    if (endDate) {
-      const entryDate = new Date(entry.created_at).toISOString().split("T")[0];
-      if (entryDate > endDate) return false;
-    }
-    return true;
-  });
 
   const totalVolume = statement.reduce((sum, e) => sum + e.amount, 0);
 
@@ -132,24 +172,35 @@ export default function AdminLedgerPage() {
         {/* Account Selector & Navigation */}
         <div className="flex items-center gap-2">
           <select
-            value={activeAccount?.id || ""}
+            value={selectedAccountId || ""}
             onChange={(e) => {
-              const acc = accounts.find((a) => a.id === Number(e.target.value));
-              if (acc) {
-                setActiveAccount(acc);
-                showToast(`Switched to Account #${acc.id}`, "info");
-              }
+              const id = Number(e.target.value);
+              setSelectedAccountId(id);
+              showToast(`Auditing Account #${id}`, "info");
             }}
             className="rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-surface py-2 px-3 text-xs font-mono font-semibold text-slate-800 dark:text-slate-200 focus:border-bullion-500 focus:outline-none shadow-xs"
           >
-            {accounts.map((acc) => {
-              const meta = getAccountMeta(acc.id);
-              return (
-                <option key={acc.id} value={acc.id}>
-                  {meta.nickname || `${acc.account_type} #${acc.id}`} ({formatAccountNumber(acc.account_number)})
-                </option>
-              );
-            })}
+            {systemAccounts.length > 0 && (
+              <optgroup label="System Settlement & ATM Vaults">
+                {systemAccounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.label} ({acc.account_number})
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {accounts.length > 0 && (
+              <optgroup label="User Banking Accounts">
+                {accounts.map((acc) => {
+                  const meta = getAccountMeta(acc.id);
+                  return (
+                    <option key={acc.id} value={acc.id}>
+                      {meta.nickname || `${acc.account_type} #${acc.id}`} ({formatAccountNumber(acc.account_number)})
+                    </option>
+                  );
+                })}
+              </optgroup>
+            )}
           </select>
 
           <Link
@@ -218,59 +269,119 @@ export default function AdminLedgerPage() {
       </div>
 
       {/* Filter & Search Toolbar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-2xl border border-[#E2DDD0] dark:border-vault-border bg-white dark:bg-vault-card shadow-xs">
-        {/* Search Input */}
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Filter by UUID or Amount..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs font-mono rounded-xl border border-slate-200 dark:border-vault-border bg-slate-50 dark:bg-vault-surface text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-bullion-500"
-          />
+      <div className="space-y-3">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-2xl border border-[#E2DDD0] dark:border-vault-border bg-white dark:bg-vault-card shadow-xs">
+          {/* Search Input */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by Journal UUID, Reference ID, or Description..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-8 py-1.5 text-xs font-mono rounded-xl border border-slate-200 dark:border-vault-border bg-slate-50 dark:bg-vault-surface text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-bullion-500"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Date Pickers */}
+          <div className="flex items-center gap-2 text-xs font-mono">
+            <div className="flex items-center gap-1 bg-slate-50 dark:bg-vault-surface border border-slate-200 dark:border-vault-border rounded-xl px-2 py-1">
+              <Calendar className="h-3 w-3 text-slate-400" />
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="bg-transparent text-slate-700 dark:text-slate-300 focus:outline-none text-[11px]"
+              />
+            </div>
+            <span className="text-slate-400">to</span>
+            <div className="flex items-center gap-1 bg-slate-50 dark:bg-vault-surface border border-slate-200 dark:border-vault-border rounded-xl px-2 py-1">
+              <Calendar className="h-3 w-3 text-slate-400" />
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="bg-transparent text-slate-700 dark:text-slate-300 focus:outline-none text-[11px]"
+              />
+            </div>
+            {(startDate || endDate) && (
+              <button
+                type="button"
+                onClick={() => { setStartDate(""); setEndDate(""); }}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded"
+                title="Clear date range"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Entry Type Filter Tabs */}
+          <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-vault-surface font-mono text-[11px]">
+            {(["ALL", "DEBIT", "CREDIT"] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setFilterType(type)}
+                className={`px-3 py-1 rounded-lg font-semibold transition ${
+                  filterType === type
+                    ? "bg-white dark:bg-vault-card text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-vault-highlight"
+                    : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Date Pickers */}
-        <div className="flex items-center gap-2 text-xs font-mono">
-          <div className="flex items-center gap-1 bg-slate-50 dark:bg-vault-surface border border-slate-200 dark:border-vault-border rounded-xl px-2 py-1">
-            <Calendar className="h-3 w-3 text-slate-400" />
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="bg-transparent text-slate-700 dark:text-slate-300 focus:outline-none text-[11px]"
-            />
-          </div>
-          <span className="text-slate-400">to</span>
-          <div className="flex items-center gap-1 bg-slate-50 dark:bg-vault-surface border border-slate-200 dark:border-vault-border rounded-xl px-2 py-1">
-            <Calendar className="h-3 w-3 text-slate-400" />
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="bg-transparent text-slate-700 dark:text-slate-300 focus:outline-none text-[11px]"
-            />
-          </div>
-        </div>
-
-        {/* Entry Type Filter Tabs */}
-        <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-vault-surface font-mono text-[11px]">
-          {(["ALL", "DEBIT", "CREDIT"] as const).map((type) => (
+        {/* Active Filter Tags */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-slate-500 dark:text-slate-400 px-1">
+            <span>Active filters:</span>
+            {filterType !== "ALL" && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-bullion-500/10 border border-bullion-500/30 text-bullion-700 dark:text-bullion-400">
+                Type: {filterType}
+                <button type="button" onClick={() => setFilterType("ALL")} className="hover:opacity-75">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {searchQuery && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-bullion-500/10 border border-bullion-500/30 text-bullion-700 dark:text-bullion-400">
+                Query: &quot;{searchQuery}&quot;
+                <button type="button" onClick={() => setSearchQuery("")} className="hover:opacity-75">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {(startDate || endDate) && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-bullion-500/10 border border-bullion-500/30 text-bullion-700 dark:text-bullion-400">
+                Date: {startDate || "Start"} → {endDate || "End"}
+                <button type="button" onClick={() => { setStartDate(""); setEndDate(""); }} className="hover:opacity-75">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
             <button
-              key={type}
               type="button"
-              onClick={() => setFilterType(type)}
-              className={`px-3 py-1 rounded-lg font-semibold transition ${
-                filterType === type
-                  ? "bg-white dark:bg-vault-card text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-vault-highlight"
-                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
-              }`}
+              onClick={handleResetFilters}
+              className="text-xs font-semibold underline text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white ml-1"
             >
-              {type}
+              Reset All
             </button>
-          ))}
-        </div>
+            <span className="text-slate-400">({totalEntries} matching)</span>
+          </div>
+        )}
       </div>
 
       {/* Postings Table */}
@@ -288,14 +399,28 @@ export default function AdminLedgerPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-vault-border">
-              {filteredStatement.length === 0 ? (
+              {statement.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-500 dark:text-slate-400 font-mono">
-                    {loading ? "Reading immutable ledger journal..." : "No ledger postings match current filters."}
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        {loading ? "Reading immutable ledger journal..." : "No ledger postings match current filters."}
+                      </p>
+                      {hasActiveFilters && !loading && (
+                        <button
+                          type="button"
+                          onClick={handleResetFilters}
+                          className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs bg-slate-900 dark:bg-bullion-500 text-white dark:text-vault-obsidian font-bold transition hover:opacity-90"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          Clear Filters
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
-                filteredStatement.map((entry) => {
+                statement.map((entry) => {
                   const isCredit = entry.entry_type === "CREDIT";
                   return (
                     <tr
@@ -358,7 +483,9 @@ export default function AdminLedgerPage() {
         {/* Pagination Bar */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-vault-border text-xs font-mono">
           <span className="text-slate-500 dark:text-slate-400">
-            Page {page + 1}
+            {totalEntries === 0
+              ? "No entries"
+              : `Showing ${page * pageSize + 1}–${Math.min((page + 1) * pageSize, totalEntries)} of ${totalEntries}`}
           </span>
           <div className="flex items-center gap-1.5">
             <button
@@ -370,10 +497,13 @@ export default function AdminLedgerPage() {
               <ChevronLeft className="h-3.5 w-3.5" />
               <span>Prev</span>
             </button>
+            <span className="px-3 py-1 text-slate-500 dark:text-slate-400">
+              Page {page + 1} of {Math.max(Math.ceil(totalEntries / pageSize), 1)}
+            </span>
             <button
               type="button"
               onClick={() => handlePageChange(page + 1)}
-              disabled={!hasMore || loading}
+              disabled={page + 1 >= Math.ceil(totalEntries / pageSize) || loading}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-vault-border disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-vault-surface transition"
             >
               <span>Next</span>
