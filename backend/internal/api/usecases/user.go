@@ -224,4 +224,32 @@ func isNumeric(s string) bool {
 	return true
 }
 
+func (u *UserUsecase) UpdateRole(adminID, targetUserID uuid.UUID, role string) error {
+	switch role {
+	case models.UserRoleUser, models.UserRoleAuditor, models.UserRoleTeller, models.UserRoleAdmin:
+	default:
+		return fmt.Errorf("invalid role: %s. Allowed roles: user, auditor, teller, admin", role)
+	}
+
+	if adminID == targetUserID && role != models.UserRoleAdmin {
+		return fmt.Errorf("cannot demote yourself from the admin role")
+	}
+
+	return u.Repo.UpdateRole(targetUserID, role)
+}
+
+func (u *UserUsecase) ListUsers(limit, offset int) ([]models.User, int, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return u.Repo.ListUsers(limit, offset)
+}
+
+
 

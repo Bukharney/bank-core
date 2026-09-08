@@ -114,7 +114,7 @@ func TestGetAccountStatementHandler_OwnerAccess(t *testing.T) {
 	cfg, uc, repo, ctrl := setupLedgerControllerTest()
 
 	ownerID := uuid.New()
-	token, err := utils.GenerateToken(cfg, ownerID, false)
+	token, err := utils.GenerateToken(cfg, ownerID, models.UserRoleUser, false)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestGetAccountStatementHandler_ForeignAccountForbidden(t *testing.T) {
 	ownerID := uuid.New()
 	callerID := uuid.New()
 
-	callerToken, err := utils.GenerateToken(cfg, callerID, false)
+	callerToken, err := utils.GenerateToken(cfg, callerID, models.UserRoleUser, false)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
@@ -173,7 +173,6 @@ func TestGetAccountStatementHandler_ForeignAccountForbidden(t *testing.T) {
 		UserID:        ownerID,
 	}
 
-	// Caller attempts to access Jane Doe's statement
 	req := httptest.NewRequest(http.MethodGet, "/ledger/statement/10", nil)
 	req.SetPathValue("id", "10")
 	req.AddCookie(&http.Cookie{Name: "access_token", Value: callerToken})
@@ -182,7 +181,47 @@ func TestGetAccountStatementHandler_ForeignAccountForbidden(t *testing.T) {
 	ctrl.GetAccountStatementHandler(w, req)
 
 	if w.Code != http.StatusForbidden {
-		t.Fatalf("expected status 403 Forbidden for foreign account statement, got %d: %s", w.Code, w.Body.String())
+		t.Fatalf("expected status 403 Forbidden for non-owner, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetAccountStatementHandler_AuditorAccess(t *testing.T) {
+	cfg, uc, repo, ctrl := setupLedgerControllerTest()
+
+	ownerID := uuid.New()
+	auditorID := uuid.New()
+
+	auditorToken, err := utils.GenerateToken(cfg, auditorID, models.UserRoleAuditor, false)
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+
+	repo.accounts[10] = &models.Account{
+		ID:            10,
+		AccountNumber: "1234567890",
+		UserID:        ownerID,
+	}
+
+	uc.statements[10] = []*models.LedgerEntry{
+		{
+			ID:           1,
+			AccountID:    10,
+			EntryType:    models.EntryTypeCredit,
+			Amount:       50000,
+			BalanceAfter: 50000,
+			CreatedAt:    time.Now(),
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/ledger/statement/10", nil)
+	req.SetPathValue("id", "10")
+	req.AddCookie(&http.Cookie{Name: "access_token", Value: auditorToken})
+	w := httptest.NewRecorder()
+
+	ctrl.GetAccountStatementHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200 OK for auditor, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -209,7 +248,7 @@ func TestGetJournalDetails_Authorized(t *testing.T) {
 	cfg, uc, repo, ctrl := setupLedgerControllerTest()
 
 	ownerID := uuid.New()
-	token, err := utils.GenerateToken(cfg, ownerID, false)
+	token, err := utils.GenerateToken(cfg, ownerID, models.UserRoleUser, false)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
@@ -274,7 +313,7 @@ func TestGetJournalDetails_Forbidden(t *testing.T) {
 	cfg, uc, repo, ctrl := setupLedgerControllerTest()
 
 	strangerID := uuid.New()
-	strangerToken, err := utils.GenerateToken(cfg, strangerID, false)
+	strangerToken, err := utils.GenerateToken(cfg, strangerID, models.UserRoleUser, false)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
@@ -290,9 +329,8 @@ func TestGetJournalDetails_Forbidden(t *testing.T) {
 	journalID := uuid.New()
 	uc.journals[journalID] = &models.JournalEntry{
 		ID:              journalID,
-		ReferenceID:     "REF-SECRET",
+		ReferenceID:     "REF-456",
 		TransactionType: models.TransactionTypeTransfer,
-		Description:     "Secret settlement",
 		Status:          models.JournalStatusPosted,
 		PostedAt:        time.Now(),
 		Postings: []models.LedgerEntry{
@@ -326,6 +364,57 @@ func TestGetJournalDetails_Forbidden(t *testing.T) {
 
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("expected status 403 Forbidden for unrelated user, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetJournalDetails_AdminAccess(t *testing.T) {
+	cfg, uc, _, ctrl := setupLedgerControllerTest()
+
+	adminID := uuid.New()
+	adminToken, err := utils.GenerateToken(cfg, adminID, models.UserRoleAdmin, false)
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+
+	// Admin does NOT own account 10 or 20
+	journalID := uuid.New()
+	uc.journals[journalID] = &models.JournalEntry{
+		ID:              journalID,
+		ReferenceID:     "REF-456",
+		TransactionType: models.TransactionTypeTransfer,
+		Status:          models.JournalStatusPosted,
+		PostedAt:        time.Now(),
+		Postings: []models.LedgerEntry{
+			{
+				ID:             1,
+				JournalEntryID: journalID,
+				AccountID:      10,
+				EntryType:      models.EntryTypeDebit,
+				Amount:         100000,
+				BalanceAfter:   0,
+				Sequence:       1,
+			},
+			{
+				ID:             2,
+				JournalEntryID: journalID,
+				AccountID:      20,
+				EntryType:      models.EntryTypeCredit,
+				Amount:         100000,
+				BalanceAfter:   200000,
+				Sequence:       2,
+			},
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/ledger/journal/"+journalID.String(), nil)
+	req.SetPathValue("id", journalID.String())
+	req.AddCookie(&http.Cookie{Name: "access_token", Value: adminToken})
+	w := httptest.NewRecorder()
+
+	ctrl.GetJournalDetailsHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200 OK for admin viewing any journal, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

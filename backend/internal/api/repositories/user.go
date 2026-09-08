@@ -184,4 +184,47 @@ func (r *UserRepository) IncrementPinFailedAttempts(id uuid.UUID) (int, error) {
 	return attempts, nil
 }
 
+func (r *UserRepository) UpdateRole(id uuid.UUID, role string) error {
+	query := `UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2`
+	res, err := r.Db.Exec(query, role, id)
+	if err != nil {
+		return err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return errors.New("user not found")
+	}
+	return nil
+}
+
+func (r *UserRepository) ListUsers(limit, offset int) ([]models.User, int, error) {
+	var total int
+	err := r.Db.Get(&total, `SELECT COUNT(*) FROM users`)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	users := []models.User{}
+	query := `
+		SELECT id, username, email, phone_number, password_hash, pin_hash, pin_failed_attempts, first_name, last_name, role, status, created_at, updated_at
+		FROM users
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	err = r.Db.Select(&users, query, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	for i := range users {
+		users[i].HasPin = users[i].PinHash != nil && *users[i].PinHash != ""
+	}
+
+	return users, total, nil
+}
+
+
 

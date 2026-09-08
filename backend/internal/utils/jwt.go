@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -17,9 +18,13 @@ t is a boolean that determines the secret to use
 If t is true, the function will use the refresh token secret
 If t is false, the function will use the access token secret
 */
-func GenerateToken(cfg *config.Config, userId uuid.UUID, t bool) (string, error) {
+func GenerateToken(cfg *config.Config, userId uuid.UUID, role string, t bool) (string, error) {
+	if role == "" {
+		role = models.UserRoleUser
+	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"userId": userId,
+		"role":   role,
 		"exp":    time.Now().Add(time.Hour * 24).Unix(),
 	})
 
@@ -73,6 +78,39 @@ func GetUserIdFromToken(cfg *config.Config, tokenString string, t bool) (string,
 	return claims["userId"].(string), nil
 }
 
+// GetClaimsFromToken extracts both userId and role from a JWT token
+func GetClaimsFromToken(cfg *config.Config, tokenString string, t bool) (string, string, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(cfg.JWTSecret[t]), nil
+	})
+	if err != nil {
+		return "", "", err
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return "", "", err
+	}
+
+	userIdStr, ok := claims["userId"].(string)
+	if !ok {
+		return "", "", errors.New("invalid userId in token claims")
+	}
+
+	role, ok := claims["role"].(string)
+	if !ok || role == "" {
+		role = models.UserRoleUser
+	}
+
+	return userIdStr, role, nil
+}
+
+// GetRoleFromToken gets the role from a JWT token
+func GetRoleFromToken(cfg *config.Config, tokenString string, t bool) (string, error) {
+	_, role, err := GetClaimsFromToken(cfg, tokenString, t)
+	return role, err
+}
+
 // ExtractToken extracts the token from the Cookie header
 func ExtractToken(r *http.Request, name string) (string, error) {
 	cookie, err := r.Cookie(name)
@@ -91,6 +129,16 @@ func GetUserIdFromRequest(cfg *config.Config, r *http.Request, t bool) (string, 
 	}
 
 	return GetUserIdFromToken(cfg, token, t)
+}
+
+// GetRoleFromRequest gets the role from the request
+func GetRoleFromRequest(cfg *config.Config, r *http.Request, t bool) (string, error) {
+	token, err := ExtractToken(r, "access_token")
+	if err != nil {
+		return "", err
+	}
+
+	return GetRoleFromToken(cfg, token, t)
 }
 
 // GetExpirationFromToken gets the expiration time from a JWT token

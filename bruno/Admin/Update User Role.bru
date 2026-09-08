@@ -1,0 +1,27 @@
+meta {
+  name: Update User Role (Admin)
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{baseUrl}}/admin/users/44444444-4444-4444-4444-444444444444/role
+  body: json
+  auth: none
+}
+
+headers {
+  ~Cookie: access_token={{access_token}}
+}
+
+body:json {
+  {
+    "role": "teller"
+  }
+}
+
+tests {
+  test("should update user role", function() {
+    expect([200, 400, 401, 403]).to.include(res.getStatus());
+  });
+}

@@ -57,7 +57,18 @@ if ($InfraOnly) {
     exit 0
 }
 
-# 3. Launch Services
+# 3. Clean up any orphaned listeners on development ports
+$devPorts = @(3000, 8080, 8081, 8082, 8083)
+foreach ($p in $devPorts) {
+    $stale = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue
+    foreach ($c in $stale) {
+        if ($c.OwningProcess -and $c.OwningProcess -ne $PID) {
+            Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+# 4. Launch Services
 if ($Windows) {
     Write-Host "`n[3/3] Launching Application Services in Separate Windows..." -ForegroundColor Yellow
     Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$root\backend'; if (Get-Command air -ErrorAction SilentlyContinue) { air } else { go run ./cmd/main.go }"

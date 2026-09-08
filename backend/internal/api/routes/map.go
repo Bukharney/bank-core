@@ -6,6 +6,7 @@ import (
 
 	"github.com/bukharney/bank-core/internal/api/controllers"
 	"github.com/bukharney/bank-core/internal/api/middleware"
+	"github.com/bukharney/bank-core/internal/api/models"
 	"github.com/bukharney/bank-core/internal/api/repositories"
 	"github.com/bukharney/bank-core/internal/api/usecases"
 	"github.com/bukharney/bank-core/internal/atm"
@@ -38,12 +39,19 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	// Controllers
 	userHandler := controllers.NewUserController(config, userUseCase)
 	authHandler := controllers.NewAuthController(config, authUseCase)
+	adminHandler := controllers.NewAdminController(config, userUseCase)
 	accountHandler := controllers.NewAccountController(config, accountUseCase)
 	transactionHandler := controllers.NewTransactionController(config, transferUseCase)
 	ledgerHandler := controllers.NewLedgerController(config, ledgerUseCase, accountRepository)
 
 	// Idempotency Middleware for mutating operations
 	idempotencyMiddleware := middleware.IdempotencyMiddleware(idempotencyRepository, config, 30*time.Second)
+
+	// Admin routes (Protected by Admin Role requirement)
+	adminRouter := http.NewServeMux()
+	adminRouter.HandleFunc("GET /users", adminHandler.ListUsersHandler)
+	adminRouter.HandleFunc("PATCH /users/{id}/role", adminHandler.UpdateUserRoleHandler)
+	handler.Handle("/admin/", http.StripPrefix("/admin", middleware.RequireRoles(models.UserRoleAdmin)(adminRouter)))
 
 	// Transaction routes (Protected by Idempotency Gateway)
 	transactionRouter := http.NewServeMux()

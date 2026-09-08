@@ -21,6 +21,7 @@ import {
   ShieldAlert,
   ArrowLeft,
   Activity,
+  Users,
 } from "lucide-react";
 import ATMSimulatorModal from "./ATMSimulatorModal";
 
@@ -59,6 +60,12 @@ export default function Sidebar() {
 
   if (!user) return null;
 
+  const role = user.role || "user";
+  const isSuperAdmin = role === "admin";
+  const isAuditor = role === "auditor";
+  const isTeller = role === "teller";
+  const isElevated = isSuperAdmin || isAuditor;
+
   // Regular Personal Banking Navigation
   const userNavLinks = [
     {
@@ -95,22 +102,36 @@ export default function Sidebar() {
       subtitle: "Cluster Hardware",
       icon: Server,
     },
+    ...(isSuperAdmin
+      ? [
+          {
+            href: "/admin/users",
+            label: "User Roles",
+            subtitle: "RBAC Directory",
+            icon: Users,
+          },
+        ]
+      : []),
   ];
 
   const userToolLinks = [
     {
       id: "atm-cash",
-      label: "Cardless ATM Cash",
-      subtitle: "Deposit & Withdraw",
+      label: isTeller ? "Teller ATM Cash" : "Cardless ATM Cash",
+      subtitle: isTeller ? "Deposit & Cash Desk" : "Deposit & Withdraw",
       icon: Banknote,
-      onClick: () => openAtmSimulator({ showPortSelector: false }),
+      onClick: () => openAtmSimulator({ showPortSelector: isTeller }),
     },
-    {
-      href: "/admin",
-      label: "Admin Console",
-      subtitle: "Core Operations",
-      icon: ShieldAlert,
-    },
+    ...(isElevated
+      ? [
+          {
+            href: "/admin",
+            label: isSuperAdmin ? "Admin Console" : "Auditor Portal",
+            subtitle: isSuperAdmin ? "Core Operations" : "Read-Only Telemetry",
+            icon: isSuperAdmin ? ShieldAlert : ShieldCheck,
+          },
+        ]
+      : []),
     {
       href: "/settings",
       label: "Settings",
@@ -143,6 +164,7 @@ export default function Sidebar() {
 
   const navLinks = isAdmin ? adminNavLinks : userNavLinks;
   const toolLinks = isAdmin ? adminToolLinks : userToolLinks;
+
 
   const sidebarContent = (isMobile: boolean = false) => {
     const collapsed = !isMobile && isCollapsed;
@@ -335,6 +357,35 @@ export default function Sidebar() {
             collapsed ? "p-2" : "p-3"
           }`}
         >
+          {!collapsed && (
+            <div className="rounded-xl bg-slate-50 dark:bg-vault-surface border border-slate-200 dark:border-vault-border p-2.5 flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center font-bold text-xs text-primary uppercase shrink-0">
+                  {user.first_name?.[0] || user.username?.[0] || "U"}
+                </div>
+                <div className="flex flex-col min-w-0 truncate">
+                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate leading-tight">
+                    {user.first_name} {user.last_name}
+                  </span>
+                  <span className="text-[10px] font-mono text-muted-foreground truncate">
+                    @{user.username}
+                  </span>
+                </div>
+              </div>
+              <span className={`text-[9px] font-mono uppercase font-bold px-1.5 py-0.5 rounded border shrink-0 ${
+                role === "admin"
+                  ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                  : role === "auditor"
+                  ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                  : role === "teller"
+                  ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/20"
+                  : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+              }`}>
+                {role}
+              </span>
+            </div>
+          )}
+
           {!collapsed ? (
             <div className="rounded-xl bg-[#F7F5EE] dark:bg-vault-surface border border-[#E2DDD0] dark:border-vault-border p-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">

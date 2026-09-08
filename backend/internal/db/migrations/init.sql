@@ -169,11 +169,20 @@ CREATE INDEX IF NOT EXISTS idx_cardless_claim ON cardless_withdrawals(phone_numb
 CREATE INDEX IF NOT EXISTS idx_cardless_expires ON cardless_withdrawals(expires_at);
 
 -- ============================================================================
--- 8. SYSTEM SEED (ATM Vaults & Central Settlement)
+-- 8. SYSTEM SEED (ATM Vaults, Central Settlement & Demo Roles)
 -- ============================================================================
 INSERT INTO users (id, username, email, password_hash, first_name, last_name, role, status)
 VALUES ('00000000-0000-0000-0000-000000000000', 'system_core', 'system@bank.internal', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'System', 'Core', 'admin', 'ACTIVE')
 ON CONFLICT (id) DO NOTHING;
+
+-- Demo Role Accounts (Password: Password123!)
+INSERT INTO users (id, username, email, phone_number, password_hash, first_name, last_name, role, status)
+VALUES 
+    ('11111111-1111-1111-1111-111111111111', 'admin_demo',    'admin@bank.core',    '0890000001', '$2a$10$2oskoScyzBGUi5xO0ZbxTuq.cjT9QC.edlP/aPJKPJFotjgDKDBia', 'Super',      'Admin',    'admin',   'ACTIVE'),
+    ('22222222-2222-2222-2222-222222222222', 'auditor_demo',  'auditor@bank.core',  '0890000002', '$2a$10$2oskoScyzBGUi5xO0ZbxTuq.cjT9QC.edlP/aPJKPJFotjgDKDBia', 'Compliance', 'Auditor',  'auditor', 'ACTIVE'),
+    ('33333333-3333-3333-3333-333333333333', 'teller_demo',   'teller@bank.core',   '0890000003', '$2a$10$2oskoScyzBGUi5xO0ZbxTuq.cjT9QC.edlP/aPJKPJFotjgDKDBia', 'Branch',     'Teller',   'teller',  'ACTIVE'),
+    ('44444444-4444-4444-4444-444444444444', 'customer_demo', 'customer@bank.core', '0890000004', '$2a$10$2oskoScyzBGUi5xO0ZbxTuq.cjT9QC.edlP/aPJKPJFotjgDKDBia', 'Demo',       'Customer', 'user',    'ACTIVE')
+ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role;
 
 INSERT INTO accounts (id, account_number, user_id, currency, account_type, status, balance)
 VALUES 
@@ -182,3 +191,8 @@ VALUES
     (102, 'ATM-VAULT-002',   '00000000-0000-0000-0000-000000000000', 'THB', 'SYSTEM_SETTLEMENT', 'ACTIVE', 500000000),
     (103, 'ATM-VAULT-003',   '00000000-0000-0000-0000-000000000000', 'THB', 'SYSTEM_SETTLEMENT', 'ACTIVE', 500000000)
 ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO accounts (id, account_number, user_id, currency, account_type, status, balance, linked_phone)
+VALUES (
+    200, '100-200-3000', '44444444-4444-4444-4444-444444444444', 'THB', 'SAVINGS', 'ACTIVE', 2500000, '0890000004'
+) ON CONFLICT (id) DO NOTHING;

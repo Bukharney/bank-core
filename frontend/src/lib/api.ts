@@ -7,6 +7,8 @@ import {
   TransferReceipt,
   TransferRequest,
   User,
+  UserRole,
+  PaginatedUsersResponse,
   WithdrawalRequest,
   CardlessWithdrawalTicket,
   ClaimResponse,
@@ -263,4 +265,22 @@ export const api = {
     getJournal: (journalId: string) =>
       request<JournalEntry>(`/ledger/journal/${journalId}`, { method: "GET" }),
   },
+
+  admin: {
+    listUsers: (limit: number = 20, offset: number = 0) =>
+      request<PaginatedUsersResponse>(
+        `/admin/users?limit=${limit}&offset=${offset}`,
+        { method: "GET" }
+      ),
+
+    updateUserRole: (userId: string, role: UserRole) =>
+      request<{ message: string; role: string }>(
+        `/admin/users/${userId}/role`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ role }),
+        }
+      ),
+  },
 };
+

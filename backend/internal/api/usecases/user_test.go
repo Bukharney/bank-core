@@ -105,6 +105,23 @@ func (m *mockUserRepo) IncrementPinFailedAttempts(id uuid.UUID) (int, error) {
 	return 0, errors.New("not found")
 }
 
+func (m *mockUserRepo) UpdateRole(id uuid.UUID, role string) error {
+	if u, ok := m.users[id]; ok {
+		u.Role = role
+		return nil
+	}
+	return errors.New("not found")
+}
+
+func (m *mockUserRepo) ListUsers(limit, offset int) ([]models.User, int, error) {
+	list := []models.User{}
+	for _, u := range m.users {
+		list = append(list, *u)
+	}
+	return list, len(list), nil
+}
+
+
 func TestUpdateProfile_Success(t *testing.T) {
 	userID := uuid.New()
 	phone := "0812345678"

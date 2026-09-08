@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/bukharney/bank-core/internal/api/middleware"
 	"github.com/bukharney/bank-core/internal/api/models"
 	"github.com/bukharney/bank-core/internal/config"
 	"github.com/bukharney/bank-core/internal/responses"
@@ -52,13 +53,20 @@ func (c *LedgerController) GetAccountStatementHandler(w http.ResponseWriter, r *
 		return
 	}
 
-	// Verify account ownership
+	// Verify account ownership (Admin & Auditor roles can inspect any account)
 	acc, err := c.AccountRepo.GetAccountByID(accountID)
 	if err != nil || acc == nil {
 		responses.NotFound(w, errors.New("account not found"))
 		return
 	}
-	if acc.UserID != userID {
+
+	role := middleware.GetRoleFromContext(r.Context())
+	if role == "" {
+		role, _ = utils.GetRoleFromRequest(c.Cfg, r, false)
+	}
+
+	isElevated := role == models.UserRoleAdmin || role == models.UserRoleAuditor
+	if !isElevated && acc.UserID != userID {
 		responses.Forbidden(w, errors.New("forbidden: access to this statement is restricted to the account owner"))
 		return
 	}
@@ -117,29 +125,37 @@ func (c *LedgerController) GetJournalDetailsHandler(w http.ResponseWriter, r *ht
 		return
 	}
 
-	// Verify that the authenticated user owns at least one participating account in the postings
-	accounts, err := c.AccountRepo.GetAccountsByUserID(userID)
-	if err != nil {
-		responses.Error(w, http.StatusInternalServerError, err)
-		return
+	role := middleware.GetRoleFromContext(r.Context())
+	if role == "" {
+		role, _ = utils.GetRoleFromRequest(c.Cfg, r, false)
 	}
 
-	userAccountIDs := make(map[int64]bool, len(accounts))
-	for _, acc := range accounts {
-		userAccountIDs[acc.ID] = true
-	}
-
-	isAuthorized := false
-	for _, posting := range journal.Postings {
-		if userAccountIDs[posting.AccountID] {
-			isAuthorized = true
-			break
+	isElevated := role == models.UserRoleAdmin || role == models.UserRoleAuditor
+	if !isElevated {
+		// Verify that the authenticated user owns at least one participating account in the postings
+		accounts, err := c.AccountRepo.GetAccountsByUserID(userID)
+		if err != nil {
+			responses.Error(w, http.StatusInternalServerError, err)
+			return
 		}
-	}
 
-	if !isAuthorized {
-		responses.Forbidden(w, errors.New("forbidden: access to this journal is restricted to participating account owners"))
-		return
+		userAccountIDs := make(map[int64]bool, len(accounts))
+		for _, acc := range accounts {
+			userAccountIDs[acc.ID] = true
+		}
+
+		isAuthorized := false
+		for _, posting := range journal.Postings {
+			if userAccountIDs[posting.AccountID] {
+				isAuthorized = true
+				break
+			}
+		}
+
+		if !isAuthorized {
+			responses.Forbidden(w, errors.New("forbidden: access to this journal is restricted to participating account owners"))
+			return
+		}
 	}
 
 	responses.JSON(w, http.StatusOK, journal)

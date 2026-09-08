@@ -124,10 +124,14 @@ func TestAuthUsecase_Login_InvalidPassword(t *testing.T) {
 }
 
 func TestAuthUsecase_RefreshToken_Success(t *testing.T) {
-	cfg, authRepo, _, authUC := setupAuthTest()
+	cfg, authRepo, userRepo, authUC := setupAuthTest()
 
 	userID := uuid.New()
-	refreshToken, err := utils.GenerateToken(cfg, userID, true)
+	userRepo.users[userID] = &models.User{
+		ID:   userID,
+		Role: models.UserRoleUser,
+	}
+	refreshToken, err := utils.GenerateToken(cfg, userID, models.UserRoleUser, true)
 	if err != nil {
 		t.Fatalf("failed to generate refresh token: %v", err)
 	}
@@ -158,7 +162,7 @@ func TestAuthUsecase_RefreshToken_RevokedOrMismatched(t *testing.T) {
 	cfg, authRepo, _, authUC := setupAuthTest()
 
 	userID := uuid.New()
-	refreshToken, err := utils.GenerateToken(cfg, userID, true)
+	refreshToken, err := utils.GenerateToken(cfg, userID, models.UserRoleUser, true)
 	if err != nil {
 		t.Fatalf("failed to generate refresh token: %v", err)
 	}
@@ -181,7 +185,7 @@ func TestAuthUsecase_Logout_Success(t *testing.T) {
 	cfg, authRepo, _, authUC := setupAuthTest()
 
 	userID := uuid.New()
-	refreshToken, err := utils.GenerateToken(cfg, userID, true)
+	refreshToken, err := utils.GenerateToken(cfg, userID, models.UserRoleUser, true)
 	if err != nil {
 		t.Fatalf("failed to generate refresh token: %v", err)
 	}
@@ -216,10 +220,11 @@ func TestAuthUsecase_Me(t *testing.T) {
 		Username:  "bankuser",
 		FirstName: "Bank",
 		LastName:  "User",
+		Role:      models.UserRoleUser,
 	}
 	userRepo.users[userID] = user
 
-	token, err := utils.GenerateToken(cfg, userID, false)
+	token, err := utils.GenerateToken(cfg, userID, models.UserRoleUser, false)
 	if err != nil {
 		t.Fatalf("failed to generate access token: %v", err)
 	}
@@ -240,7 +245,7 @@ func TestAuthUsecase_Me(t *testing.T) {
 
 	// Non-existent user
 	nonExistentID := uuid.New()
-	orphanToken, _ := utils.GenerateToken(cfg, nonExistentID, false)
+	orphanToken, _ := utils.GenerateToken(cfg, nonExistentID, models.UserRoleUser, false)
 	_, err = authUC.Me(orphanToken)
 	if err == nil {
 		t.Fatalf("expected error for non-existent user, got nil")

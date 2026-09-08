@@ -36,7 +36,7 @@ func (u *AuthUsecase) Login(user *models.UserCredentials) (*models.LoginResponse
 		return nil, fmt.Errorf("invalid email or password")
 	}
 
-	refreshToken, err := utils.GenerateToken(u.Cfg, dbUser.ID, true)
+	refreshToken, err := utils.GenerateToken(u.Cfg, dbUser.ID, dbUser.Role, true)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (u *AuthUsecase) Login(user *models.UserCredentials) (*models.LoginResponse
 		return nil, err
 	}
 
-	accessToken, err := utils.GenerateToken(u.Cfg, dbUser.ID, false)
+	accessToken, err := utils.GenerateToken(u.Cfg, dbUser.ID, dbUser.Role, false)
 	if err != nil {
 		return nil, err
 	}
@@ -83,12 +83,17 @@ func (u *AuthUsecase) RefreshToken(refreshToken string) (*models.LoginResponse, 
 		return nil, fmt.Errorf("invalid user id in token")
 	}
 
-	accessToken, err := utils.GenerateToken(u.Cfg, userID, false)
+	user, err := u.UserRepo.GetUserByID(userID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	accessToken, err := utils.GenerateToken(u.Cfg, userID, user.Role, false)
 	if err != nil {
 		return nil, err
 	}
 
-	newRefreshToken, err := utils.GenerateToken(u.Cfg, userID, true)
+	newRefreshToken, err := utils.GenerateToken(u.Cfg, userID, user.Role, true)
 	if err != nil {
 		return nil, err
 	}

@@ -15,8 +15,10 @@ const (
 
 // User Role Constants
 const (
-	UserRoleUser  = "user"
-	UserRoleAdmin = "admin"
+	UserRoleUser    = "user"
+	UserRoleAuditor = "auditor"
+	UserRoleTeller  = "teller"
+	UserRoleAdmin   = "admin"
 )
 
 type User struct {
@@ -67,6 +69,10 @@ type VerifyPinRequest struct {
 	PIN string `json:"pin" validate:"required,len=6,numeric"`
 }
 
+type UpdateUserRoleRequest struct {
+	Role string `json:"role" validate:"required,oneof=user auditor teller admin"`
+}
+
 type UserRepository interface {
 	GetUserByEmail(email string) (*User, error)
 	GetUserByID(id uuid.UUID) (*User, error)
@@ -79,6 +85,8 @@ type UserRepository interface {
 	SetPin(id uuid.UUID, pinHash string) error
 	ResetPinFailedAttempts(id uuid.UUID) error
 	IncrementPinFailedAttempts(id uuid.UUID) (int, error)
+	UpdateRole(id uuid.UUID, role string) error
+	ListUsers(limit, offset int) ([]User, int, error)
 }
 
 type UserUsecase interface {
@@ -88,5 +96,8 @@ type UserUsecase interface {
 	ChangePassword(userID uuid.UUID, req *ChangePasswordRequest) error
 	SetPin(userID uuid.UUID, req *SetPinRequest) error
 	VerifyPin(userID uuid.UUID, pin string) error
+	UpdateRole(adminID, targetUserID uuid.UUID, role string) error
+	ListUsers(limit, offset int) ([]User, int, error)
 }
+
 

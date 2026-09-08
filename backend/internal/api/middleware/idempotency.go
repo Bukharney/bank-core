@@ -20,6 +20,7 @@ type contextKey string
 
 const (
 	UserIDContextKey contextKey = "userId"
+	RoleContextKey   contextKey = "role"
 )
 
 // responseRecorder captures the HTTP status code, headers, and body for idempotency caching

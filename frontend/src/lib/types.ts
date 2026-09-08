@@ -1,3 +1,5 @@
+export type UserRole = "user" | "auditor" | "teller" | "admin";
+
 export interface User {
   id: string;
   username: string;
@@ -5,11 +7,18 @@ export interface User {
   phone_number?: string;
   first_name: string;
   last_name: string;
-  role: string;
+  role: UserRole;
   status: string;
   has_pin?: boolean;
   pin_failed_attempts?: number;
   created_at: string;
+}
+
+export interface PaginatedUsersResponse {
+  users: User[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface Account {

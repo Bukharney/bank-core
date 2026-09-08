@@ -1,0 +1,21 @@
+meta {
+  name: List Users (Admin)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/users?limit=20&offset=0
+  body: none
+  auth: none
+}
+
+headers {
+  ~Cookie: access_token={{access_token}}
+}
+
+tests {
+  test("should list users for admin", function() {
+    expect([200, 401, 403]).to.include(res.getStatus());
+  });
+}

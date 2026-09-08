@@ -94,7 +94,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		userIdStr, err := utils.GetUserIdFromToken(cfg, token, false)
+		userIdStr, role, err := utils.GetClaimsFromToken(cfg, token, false)
 		if err != nil {
 			responses.Unauthorized(w, err)
 			return
@@ -107,8 +107,45 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), UserIDContextKey, parsedID)
+		ctx = context.WithValue(ctx, RoleContextKey, role)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// GetRoleFromContext retrieves the user's role from context
+func GetRoleFromContext(ctx context.Context) string {
+	if role, ok := ctx.Value(RoleContextKey).(string); ok {
+		return role
+	}
+	return ""
+}
+
+// RequireRoles verifies the authenticated user possesses at least one of the required roles
+func RequireRoles(allowedRoles ...string) func(http.Handler) http.Handler {
+	allowedMap := make(map[string]bool, len(allowedRoles))
+	for _, r := range allowedRoles {
+		allowedMap[r] = true
+	}
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			role := GetRoleFromContext(r.Context())
+			if role == "" {
+				// Fallback to checking from token if context didn't have it
+				cfg := config.NewConfig()
+				if tokenRole, err := utils.GetRoleFromRequest(cfg, r, false); err == nil && tokenRole != "" {
+					role = tokenRole
+				}
+			}
+
+			if !allowedMap[role] {
+				responses.Forbidden(w, errors.New("forbidden: insufficient permissions for this operation"))
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // LoggerMiddleware logs the request, response, and records Prometheus HTTP metrics

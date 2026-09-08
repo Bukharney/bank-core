@@ -137,7 +137,7 @@ func TestGetAccountByIDHandler_OwnerAccess(t *testing.T) {
 	cfg, uc, ctrl := setupAccountControllerTest()
 
 	ownerID := uuid.New()
-	token, err := utils.GenerateToken(cfg, ownerID, false)
+	token, err := utils.GenerateToken(cfg, ownerID, models.UserRoleUser, false)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestGetAccountByIDHandler_ForeignAccountForbidden(t *testing.T) {
 	ownerID := uuid.New()
 	callerID := uuid.New()
 
-	callerToken, err := utils.GenerateToken(cfg, callerID, false)
+	callerToken, err := utils.GenerateToken(cfg, callerID, models.UserRoleUser, false)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}

@@ -1,6 +1,7 @@
 package middleware_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -171,3 +172,51 @@ func TestATMMachineAuth_InvalidSecret(t *testing.T) {
 		t.Fatalf("expected status 401 Unauthorized, got %d", w.Code)
 	}
 }
+
+func TestRequireRoles_Authorized(t *testing.T) {
+	nextCalled := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	guard := middleware.RequireRoles("admin", "auditor")(next)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/users", nil)
+	ctx := context.WithValue(req.Context(), middleware.RoleContextKey, "admin")
+	req = req.WithContext(ctx)
+
+	w := httptest.NewRecorder()
+	guard.ServeHTTP(w, req)
+
+	if !nextCalled {
+		t.Fatalf("expected next handler to be called for authorized role 'admin'")
+	}
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d", w.Code)
+	}
+}
+
+func TestRequireRoles_Forbidden(t *testing.T) {
+	nextCalled := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nextCalled = true
+	})
+
+	guard := middleware.RequireRoles("admin")(next)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/users", nil)
+	ctx := context.WithValue(req.Context(), middleware.RoleContextKey, "user")
+	req = req.WithContext(ctx)
+
+	w := httptest.NewRecorder()
+	guard.ServeHTTP(w, req)
+
+	if nextCalled {
+		t.Fatalf("expected next handler NOT to be called for unauthorized role 'user'")
+	}
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected status 403 Forbidden, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
