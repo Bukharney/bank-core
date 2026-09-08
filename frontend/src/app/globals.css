@@ -3,8 +3,23 @@
 @tailwind utilities;
 
 :root {
-  --background: #f8fafc;
+  --background: #f7f5ee;
   --foreground: #0f172a;
+  --surface: #ffffff;
+  --surface-subtle: #f0ede4;
+  --border: #e2ddd0;
+}
+
+.dark {
+  --background: #080c14;
+  --foreground: #f1f5f9;
+  --surface: #0e1422;
+  --surface-subtle: #121a2b;
+  --border: #1e2b45;
+}
+
+html {
+  transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 body {
@@ -13,12 +28,58 @@ body {
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Force Tabular Numerals for Precision Ledger Alignment */
+.tabular-nums,
+[data-tabular-num="true"],
+.font-mono {
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Subtle Guilloché Security Wave Patterns */
+.bg-guilloche-pattern {
+  background-image: radial-gradient(rgba(197, 168, 105, 0.14) 1px, transparent 1px),
+                    radial-gradient(rgba(158, 128, 62, 0.08) 1px, transparent 1px);
+  background-size: 26px 26px, 13px 13px;
+  background-position: 0 0, 13px 13px;
+}
+
+.dark .bg-guilloche-pattern {
+  background-image: radial-gradient(rgba(197, 168, 105, 0.07) 1px, transparent 1px),
+                    radial-gradient(rgba(30, 43, 69, 0.25) 1px, transparent 1px);
+  background-size: 28px 28px, 14px 14px;
+  background-position: 0 0, 14px 14px;
+}
+
+/* Security Seal Rosette Pattern for Receipt Slips */
+.bg-rosette-seal {
+  background-image: repeating-conic-gradient(
+    from 0deg,
+    rgba(197, 168, 105, 0.05) 0deg 15deg,
+    transparent 15deg 30deg
+  );
+}
+
+/* Metallic Billet Card Texture */
+.smart-card-titanium {
+  background: linear-gradient(135deg, #131b2e 0%, #0c121e 50%, #151f33 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.18);
+}
+
+.smart-card-gold {
+  background: linear-gradient(135deg, #1f1b13 0%, #12100a 50%, #292215 100%);
+  border: 1px solid rgba(212, 179, 75, 0.3);
+  box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.7), 0 0 20px -5px rgba(212, 179, 75, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.2);
 }
 
 /* Custom Minimalist Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -31,11 +92,15 @@ body {
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #1e2b45;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #2a3a5e;
 }
 
 /* Print Styles for Official Banking Slip - Strictly 1 Page */

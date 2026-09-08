@@ -18,10 +18,13 @@ import {
   Moon,
   Settings,
   Menu,
+  ShieldAlert,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const isAdmin = pathname.startsWith("/admin");
   const { user, accounts, activeAccount, setActiveAccount, refreshData, logout } = useAuth();
   const { showToast } = useToast();
   const { theme, toggleTheme } = useTheme();
@@ -90,19 +93,24 @@ export default function Navbar() {
   if (!user) return null;
 
   const activeMeta = activeAccount ? getAccountMeta(activeAccount.id) : null;
-  const activeColorPreset = activeMeta ? COLOR_PRESETS[activeMeta.color] || COLOR_PRESETS.slate : COLOR_PRESETS.slate;
+  const activeColorPreset = activeMeta ? COLOR_PRESETS[activeMeta.color] || COLOR_PRESETS.bullion : COLOR_PRESETS.bullion;
 
   // Compute dynamic page title
   const getPageInfo = () => {
+    if (pathname.startsWith("/admin")) {
+      if (pathname === "/admin/ledger") return { title: "Audited Ledger", category: "Audit & Controls" };
+      if (pathname === "/admin/nodes") return { title: "ATM Cluster Fleet", category: "Hardware Telemetry" };
+      return { title: "Operations Console", category: "Core Systems" };
+    }
     switch (pathname) {
       case "/":
-        return { title: "Dashboard", category: "Banking Core" };
+        return { title: "Dashboard", category: "Personal Banking" };
       case "/transfer":
-        return { title: "Transfers", category: "Transactions" };
+        return { title: "Send Money", category: "Transfers" };
       case "/ledger":
-        return { title: "Ledger", category: "Audit & Entries" };
+        return { title: "Account Statement", category: "Statements" };
       case "/settings":
-        return { title: "Settings", category: "Account & Security" };
+        return { title: "Settings", category: "Profile & Security" };
       default:
         return { title: "BankCore", category: "Platform" };
     }
@@ -111,15 +119,15 @@ export default function Navbar() {
   const pageInfo = getPageInfo();
 
   return (
-    <header className="sticky top-0 z-20 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#070b14]/95 backdrop-blur-md">
+    <header className="sticky top-0 z-20 w-full border-b border-[#E2DDD0] dark:border-vault-border bg-[#F7F5EE]/90 dark:bg-vault-obsidian/90 backdrop-blur-md transition-colors duration-300">
       <div className="flex h-14 items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Left: Mobile Toggle + Breadcrumb / Page Title */}
+        {/* Left: Mobile Toggle + Breadcrumb / Page Title + Telemetry Badge */}
         <div className="flex items-center gap-3">
           {/* Mobile Drawer Trigger */}
           <button
             type="button"
             onClick={toggleMobileOpen}
-            className="md:hidden flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="md:hidden flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-vault-elevated transition-colors"
             aria-label="Open sidebar menu"
           >
             <Menu className="h-4 w-4" />
@@ -127,20 +135,62 @@ export default function Navbar() {
 
           {/* Dynamic Page Title & Section */}
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 hidden sm:inline">
+            <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400 dark:text-slate-500 hidden sm:inline">
               {pageInfo.category}
             </span>
-            <span className="text-[11px] text-slate-300 dark:text-slate-600 hidden sm:inline">
+            <span className="text-[11px] text-slate-300 dark:text-vault-border hidden sm:inline">
               /
             </span>
-            <h1 className="text-sm font-semibold text-slate-900 dark:text-white">
+            <h1 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">
               {pageInfo.title}
             </h1>
           </div>
+
+          {/* Telemetry Badge (Only on Admin routes) vs Secure Banking Badge (on User routes) */}
+          {isAdmin ? (
+            <div className="hidden lg:flex items-center gap-1.5 ml-3 pl-3 border-l border-slate-200 dark:border-vault-border text-[10px] font-mono text-slate-500 dark:text-slate-400">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-ledger-credit"></span>
+              </span>
+              <span className="tracking-widest uppercase text-slate-600 dark:text-slate-300">CORE ONLINE</span>
+              <span className="text-slate-400 dark:text-slate-600">::</span>
+              <span className="text-bullion-500">DOUBLE-ENTRY OK</span>
+            </div>
+          ) : (
+            <div className="hidden lg:flex items-center gap-1.5 ml-3 pl-3 border-l border-slate-200 dark:border-vault-border text-[10px] font-mono text-emerald-700 dark:text-ledger-credit font-semibold">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="tracking-wider uppercase">SECURE CONNECTION</span>
+            </div>
+          )}
         </div>
 
-        {/* Right: Account Selector + Quick Theme Toggle + User Avatar */}
+        {/* Center/Right: Portal Switcher Pill + Account Selector + Theme + User */}
         <div className="flex items-center gap-2.5">
+          {/* Portal Switcher Pill */}
+          <div className="flex items-center p-0.5 rounded-xl border border-[#E2DDD0] dark:border-vault-border bg-white/80 dark:bg-vault-surface font-mono text-[11px] shadow-2xs">
+            <Link
+              href="/"
+              className={`px-2.5 py-1 rounded-lg font-semibold transition ${
+                !isAdmin
+                  ? "bg-slate-900 dark:bg-vault-elevated text-white dark:text-bullion-400 shadow-xs border border-slate-800 dark:border-vault-highlight"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              Customer
+            </Link>
+            <Link
+              href="/admin"
+              className={`px-2.5 py-1 rounded-lg font-semibold transition flex items-center gap-1 ${
+                isAdmin
+                  ? "bg-slate-900 dark:bg-vault-elevated text-white dark:text-bullion-400 shadow-xs border border-slate-800 dark:border-vault-highlight"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              <ShieldAlert className="h-3 w-3 text-bullion-500" />
+              <span>Admin</span>
+            </Link>
+          </div>
           {/* Account Selector Pill */}
           {accounts.length > 0 && activeAccount && (
             <div className="relative" ref={accountDropdownRef}>
@@ -173,14 +223,14 @@ export default function Navbar() {
 
               {/* Account Switcher Popover */}
               {accountDropdownOpen && (
-                <div className="absolute right-0 mt-1.5 w-72 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1.5 shadow-xl z-50 animate-slide-up">
+                <div className="absolute right-0 mt-1.5 w-72 rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-card p-1.5 shadow-xl z-50 animate-slide-up">
                   <div className="px-2.5 py-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                     Accounts ({accounts.length})
                   </div>
                   <div className="space-y-0.5 mt-1">
                     {accounts.map((acc) => {
                       const meta = getAccountMeta(acc.id);
-                      const colorPreset = COLOR_PRESETS[meta.color] || COLOR_PRESETS.slate;
+                      const colorPreset = COLOR_PRESETS[meta.color] || COLOR_PRESETS.bullion;
                       const isCurrent = activeAccount.id === acc.id;
 
                       return (
@@ -194,8 +244,8 @@ export default function Navbar() {
                           }}
                           className={`w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs transition-colors ${
                             isCurrent
-                              ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-medium"
-                              : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                              ? "bg-slate-100 dark:bg-vault-elevated text-slate-900 dark:text-white font-medium"
+                              : "text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-vault-surface"
                           }`}
                         >
                           <div className="min-w-0 pr-2">
@@ -211,7 +261,7 @@ export default function Navbar() {
                             <span className="font-mono font-semibold text-slate-900 dark:text-white">
                               {formatMoney(acc.balance, acc.currency)}
                             </span>
-                            {isCurrent && <Check className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />}
+                            {isCurrent && <Check className="h-3.5 w-3.5 text-bullion-500" />}
                           </div>
                         </button>
                       );
@@ -226,14 +276,14 @@ export default function Navbar() {
           <button
             type="button"
             onClick={toggleTheme}
-            className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#E2DDD0] dark:border-vault-border bg-white dark:bg-vault-surface text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:border-bullion-400/60 dark:hover:border-vault-highlight transition-all duration-300 group"
             aria-label="Toggle theme"
-            title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            title={`Switch to ${theme === "dark" ? "Banknote Ivory light" : "Swiss Vault dark"} mode`}
           >
             {theme === "dark" ? (
-              <Sun className="h-4 w-4 text-amber-400" />
+              <Sun className="h-4 w-4 text-bullion-400 transition-transform duration-300 group-hover:rotate-45" />
             ) : (
-              <Moon className="h-4 w-4 text-slate-600" />
+              <Moon className="h-4 w-4 text-slate-700 transition-transform duration-300 group-hover:-rotate-12" />
             )}
           </button>
 
@@ -245,8 +295,8 @@ export default function Navbar() {
                 setUserDropdownOpen(!userDropdownOpen);
                 setAccountDropdownOpen(false);
               }}
-              className={`flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold transition-transform hover:scale-105 ${
-                userDropdownOpen ? "ring-2 ring-blue-500" : ""
+              className={`flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 dark:bg-vault-surface dark:border dark:border-vault-border text-white dark:text-bullion-400 text-xs font-bold font-mono transition-all hover:scale-105 ${
+                userDropdownOpen ? "ring-2 ring-bullion-500" : ""
               }`}
               aria-label="Open user menu"
             >
@@ -255,13 +305,13 @@ export default function Navbar() {
 
             {/* User Dropdown Popover */}
             {userDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-60 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1.5 shadow-xl z-50 animate-slide-up">
+              <div className="absolute right-0 mt-2 w-60 rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-card p-1.5 shadow-xl z-50 animate-slide-up">
                 {/* User details */}
-                <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="px-3 py-2 border-b border-slate-100 dark:border-vault-border">
                   <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">
                     {user.first_name} {user.last_name}
                   </p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                  <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate">
                     {user.email}
                   </p>
                 </div>
@@ -275,7 +325,7 @@ export default function Navbar() {
                       setUserDropdownOpen(false);
                     }}
                     disabled={refreshing}
-                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors"
+                    className="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-vault-elevated hover:text-slate-900 dark:hover:text-white transition-colors"
                   >
                     <RefreshCw className={`h-3.5 w-3.5 text-slate-400 ${refreshing ? "animate-spin" : ""}`} />
                     <span>Sync Balances</span>
@@ -284,7 +334,7 @@ export default function Navbar() {
                   <Link
                     href="/settings"
                     onClick={() => setUserDropdownOpen(false)}
-                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors"
+                    className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-vault-elevated hover:text-slate-900 dark:hover:text-white transition-colors"
                   >
                     <Settings className="h-3.5 w-3.5 text-slate-400" />
                     <span>Settings</span>
@@ -292,7 +342,7 @@ export default function Navbar() {
                 </div>
 
                 {/* Sign Out */}
-                <div className="pt-1 border-t border-slate-100 dark:border-slate-800">
+                <div className="pt-1 border-t border-slate-100 dark:border-vault-border">
                   <button
                     type="button"
                     onClick={() => {

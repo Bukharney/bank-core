@@ -267,58 +267,57 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
       {/* Top Banner / User Hero Card */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl p-6 sm:p-8 shadow-sm">
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+      <div className="relative overflow-hidden rounded-2xl border border-[#E2DDD0] dark:border-vault-border bg-white dark:bg-vault-card p-6 sm:p-8 shadow-xs dark:shadow-card-depth transition-colors duration-300">
+        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-bullion-500/10 blur-3xl pointer-events-none" />
 
         <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
-            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 dark:from-white dark:to-slate-200 text-white dark:text-slate-950 font-extrabold text-2xl shadow-md">
+            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 dark:from-vault-surface dark:to-vault-elevated border dark:border-bullion-500/30 text-white dark:text-bullion-400 font-extrabold text-2xl shadow-md font-mono">
               {user.first_name?.[0]?.toUpperCase() || "U"}
-              <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-white dark:border-slate-900 bg-emerald-500" title="Account Active" />
+              <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-white dark:border-vault-card bg-emerald-500" title="Account Active" />
             </div>
 
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2.5">
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                   {user.first_name} {user.last_name}
                 </h1>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-ledger-credit border border-emerald-500/30">
                   <CheckCircle2 className="h-3 w-3" />
                   {user.status || "ACTIVE"}
                 </span>
-                <span className="inline-flex items-center rounded-full bg-blue-50 dark:bg-blue-950/50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 uppercase text-[10px]">
+                <span className="inline-flex items-center rounded-full bg-bullion-500/10 px-2.5 py-0.5 text-xs font-semibold text-bullion-700 dark:text-bullion-400 border border-bullion-500/30 uppercase text-[10px] font-mono">
                   {user.role || "USER"}
                 </span>
                 {user.has_pin ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 text-[10px] font-mono font-semibold text-emerald-700 dark:text-ledger-credit border border-emerald-500/30">
                     <Key className="h-3 w-3" />
-                    PIN Active
+                    PIN Armed
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-950/50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 dark:bg-amber-950/50 px-2.5 py-0.5 text-[10px] font-mono font-semibold text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-800">
                     <AlertCircle className="h-3 w-3" />
                     PIN Not Set
                   </span>
                 )}
               </div>
 
-              <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-3 flex-wrap">
-                <span className="flex items-center gap-1 font-mono">
-                  <AtSign className="h-3 w-3" />
+              <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-3 flex-wrap font-mono">
+                <span className="flex items-center gap-1">
+                  <AtSign className="h-3 w-3 text-slate-400" />
                   {user.username}
                 </span>
-                <span>•</span>
+                <span className="text-slate-300 dark:text-vault-border">•</span>
                 <span className="flex items-center gap-1">
-                  <Mail className="h-3 w-3" />
+                  <Mail className="h-3 w-3 text-slate-400" />
                   {user.email}
                 </span>
                 {user.created_at && (
                   <>
-                    <span>•</span>
+                    <span className="text-slate-300 dark:text-vault-border">•</span>
                     <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      Member since {formatDate(user.created_at)}
+                      <Calendar className="h-3 w-3 text-slate-400" />
+                      Since {formatDate(user.created_at)}
                     </span>
                   </>
                 )}
@@ -326,11 +325,11 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-stretch sm:self-auto">
-            <div className="w-full sm:w-auto rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 px-4 py-2.5 text-center sm:text-right">
-              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Accounts</div>
-              <div className="text-lg font-bold font-mono text-slate-900 dark:text-white">
-                {accounts.length}
+          <div className="flex items-center gap-2 self-stretch sm:self-auto font-mono">
+            <div className="w-full sm:w-auto rounded-xl bg-slate-50 dark:bg-vault-surface border border-slate-200/60 dark:border-vault-border px-4 py-2.5 text-center sm:text-right">
+              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Allocated Vaults</div>
+              <div className="text-lg font-bold text-slate-900 dark:text-white tabular-nums">
+                {accounts.length}/5
               </div>
             </div>
           </div>
@@ -340,19 +339,19 @@ export default function SettingsPage() {
       {/* Main Grid: Tabs + Content */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Left Navigation Tabs */}
-        <div className="space-y-2">
+        <div className="space-y-2 font-mono">
           <button
             onClick={() => setActiveTab("profile")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold transition-all ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all ${
               activeTab === "profile"
-                ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm"
-                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                ? "bg-slate-900 dark:bg-vault-elevated text-white dark:text-bullion-400 shadow-xs border dark:border-vault-highlight"
+                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-vault-surface"
             }`}
           >
             <UserIcon className="h-4 w-4 shrink-0" />
-            <div className="text-left">
-              <div className="leading-tight">Personal Details</div>
-              <div className={`text-[10px] font-normal ${activeTab === "profile" ? "text-slate-300 dark:text-slate-600" : "text-slate-400"}`}>
+            <div className="text-left font-sans">
+              <div className="leading-tight font-semibold">Personal Details</div>
+              <div className={`text-[10px] font-normal font-mono ${activeTab === "profile" ? "text-slate-300 dark:text-slate-400" : "text-slate-400"}`}>
                 Name & contact
               </div>
             </div>
@@ -360,32 +359,32 @@ export default function SettingsPage() {
 
           <button
             onClick={() => setActiveTab("security")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold transition-all ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all ${
               activeTab === "security"
-                ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm"
-                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                ? "bg-slate-900 dark:bg-vault-elevated text-white dark:text-bullion-400 shadow-xs border dark:border-vault-highlight"
+                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-vault-surface"
             }`}
           >
             <ShieldCheck className="h-4 w-4 shrink-0" />
-            <div className="text-left">
-              <div className="leading-tight">Security & Password</div>
-              <div className={`text-[10px] font-normal ${activeTab === "security" ? "text-slate-300 dark:text-slate-600" : "text-slate-400"}`}>
-                Account login credentials
+            <div className="text-left font-sans">
+              <div className="leading-tight font-semibold">Security & Password</div>
+              <div className={`text-[10px] font-normal font-mono ${activeTab === "security" ? "text-slate-300 dark:text-slate-400" : "text-slate-400"}`}>
+                Account credentials
               </div>
             </div>
           </button>
 
           <button
             onClick={() => setActiveTab("pin")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold transition-all ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all ${
               activeTab === "pin"
-                ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm"
-                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                ? "bg-slate-900 dark:bg-vault-elevated text-white dark:text-bullion-400 shadow-xs border dark:border-vault-highlight"
+                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-vault-surface"
             }`}
           >
             <KeyRound className="h-4 w-4 shrink-0" />
-            <div className="text-left">
-              <div className="leading-tight flex items-center gap-1.5">
+            <div className="text-left font-sans">
+              <div className="leading-tight flex items-center gap-1.5 font-semibold">
                 <span>Transaction PIN</span>
                 {user.has_pin ? (
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -393,7 +392,7 @@ export default function SettingsPage() {
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
                 )}
               </div>
-              <div className={`text-[10px] font-normal ${activeTab === "pin" ? "text-slate-300 dark:text-slate-600" : "text-slate-400"}`}>
+              <div className={`text-[10px] font-normal font-mono ${activeTab === "pin" ? "text-slate-300 dark:text-slate-400" : "text-slate-400"}`}>
                 6-digit transfer authorization
               </div>
             </div>
@@ -401,16 +400,16 @@ export default function SettingsPage() {
 
           <button
             onClick={() => setActiveTab("accounts")}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold transition-all ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition-all ${
               activeTab === "accounts"
-                ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm"
-                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                ? "bg-slate-900 dark:bg-vault-elevated text-white dark:text-bullion-400 shadow-xs border dark:border-vault-highlight"
+                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-vault-surface"
             }`}
           >
             <CreditCard className="h-4 w-4 shrink-0" />
-            <div className="text-left">
-              <div className="leading-tight">Linked Accounts</div>
-              <div className={`text-[10px] font-normal ${activeTab === "accounts" ? "text-slate-300 dark:text-slate-600" : "text-slate-400"}`}>
+            <div className="text-left font-sans">
+              <div className="leading-tight font-semibold">Linked Accounts</div>
+              <div className={`text-[10px] font-normal font-mono ${activeTab === "accounts" ? "text-slate-300 dark:text-slate-400" : "text-slate-400"}`}>
                 {accounts.length} core account{accounts.length === 1 ? "" : "s"}
               </div>
             </div>
@@ -421,10 +420,10 @@ export default function SettingsPage() {
         <div className="lg:col-span-3">
           {/* TAB 1: Personal Details */}
           {activeTab === "profile" && (
-            <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/60 backdrop-blur-xl p-6 sm:p-8 shadow-sm">
+            <div className="rounded-3xl border border-[#E2DDD0] dark:border-vault-border bg-white dark:bg-vault-card p-6 sm:p-8 shadow-xs dark:shadow-card-depth transition-colors duration-300">
               <div className="mb-6">
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <UserIcon className="h-5 w-5 text-blue-500" />
+                  <UserIcon className="h-5 w-5 text-bullion-500" />
                   Personal Information
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -440,7 +439,7 @@ export default function SettingsPage() {
               )}
 
               {profileSuccess && (
-                <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-xs text-emerald-700 dark:text-emerald-400">
+                <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-xs text-emerald-700 dark:text-ledger-credit">
                   <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
                   <div>Your personal details have been updated successfully!</div>
                 </div>
@@ -448,9 +447,9 @@ export default function SettingsPage() {
 
               <form onSubmit={handleProfileSubmit} className="space-y-6">
                 {/* Read-Only Credentials Section */}
-                <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800/60 p-4 sm:p-5 space-y-4">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                    <Lock className="h-3.5 w-3.5" />
+                <div className="rounded-2xl bg-slate-50 dark:bg-vault-surface border border-slate-200/60 dark:border-vault-border p-4 sm:p-5 space-y-4">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-mono">
+                    <Lock className="h-3.5 w-3.5 text-bullion-500" />
                     Verified System Identifiers (Read-Only)
                   </div>
 
@@ -459,7 +458,7 @@ export default function SettingsPage() {
                       <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
                         Username
                       </label>
-                      <div className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 px-3.5 py-2 text-xs font-mono text-slate-600 dark:text-slate-300">
+                      <div className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-vault-border bg-slate-100 dark:bg-vault-obsidian px-3.5 py-2 text-xs font-mono text-slate-600 dark:text-slate-300">
                         <AtSign className="h-3.5 w-3.5 text-slate-400" />
                         <span className="truncate">{user.username}</span>
                       </div>
@@ -469,7 +468,7 @@ export default function SettingsPage() {
                       <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
                         Email Address
                       </label>
-                      <div className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 px-3.5 py-2 text-xs text-slate-600 dark:text-slate-300">
+                      <div className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-vault-border bg-slate-100 dark:bg-vault-obsidian px-3.5 py-2 text-xs text-slate-600 dark:text-slate-300">
                         <Mail className="h-3.5 w-3.5 text-slate-400" />
                         <span className="truncate">{user.email}</span>
                       </div>
@@ -479,7 +478,7 @@ export default function SettingsPage() {
 
                 {/* Editable Personal Details */}
                 <div className="space-y-4">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono">
                     Editable Contact Details
                   </div>
 
@@ -493,7 +492,7 @@ export default function SettingsPage() {
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                         required
-                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-white focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-white transition"
+                        className="w-full rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-surface px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-bullion-400 focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-bullion-400/30 transition"
                         placeholder="John"
                       />
                     </div>
@@ -507,7 +506,7 @@ export default function SettingsPage() {
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                         required
-                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-white focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-white transition"
+                        className="w-full rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-surface px-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-bullion-400 focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-bullion-400/30 transition"
                         placeholder="Doe"
                       />
                     </div>
@@ -525,7 +524,7 @@ export default function SettingsPage() {
                         type="tel"
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 pl-10 pr-3.5 py-2.5 text-xs font-mono text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-white focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-white transition"
+                        className="w-full rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-surface pl-10 pr-3.5 py-2.5 text-xs font-mono text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-bullion-400 focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-bullion-400/30 transition"
                         placeholder="0812345678"
                       />
                     </div>
@@ -536,7 +535,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-vault-border">
                   <button
                     type="button"
                     onClick={() => {
@@ -547,7 +546,7 @@ export default function SettingsPage() {
                         setProfileError(null);
                       }
                     }}
-                    className="rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                    className="rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-vault-surface transition"
                   >
                     Reset
                   </button>
@@ -555,7 +554,7 @@ export default function SettingsPage() {
                   <button
                     type="submit"
                     disabled={profileSubmitting}
-                    className="flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-white px-5 py-2.5 text-xs font-bold text-white dark:text-slate-900 hover:opacity-90 transition disabled:opacity-50 shadow-sm active:scale-95"
+                    className="flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-bullion-500 dark:hover:bg-bullion-400 dark:text-vault-obsidian px-5 py-2.5 text-xs font-bold text-white hover:opacity-95 transition disabled:opacity-50 shadow-xs dark:shadow-bullion-glow active:scale-95"
                   >
                     {profileSubmitting ? (
                       <>
@@ -576,10 +575,10 @@ export default function SettingsPage() {
 
           {/* TAB 2: Security & Password */}
           {activeTab === "security" && (
-            <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/60 backdrop-blur-xl p-6 sm:p-8 shadow-sm">
+            <div className="rounded-3xl border border-[#E2DDD0] dark:border-vault-border bg-white dark:bg-vault-card p-6 sm:p-8 shadow-xs dark:shadow-card-depth transition-colors duration-300">
               <div className="mb-6">
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <KeyRound className="h-5 w-5 text-amber-500" />
+                  <KeyRound className="h-5 w-5 text-bullion-500" />
                   Security & Password Credentials
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -595,7 +594,7 @@ export default function SettingsPage() {
               )}
 
               {securitySuccess && (
-                <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-xs text-emerald-700 dark:text-emerald-400">
+                <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-xs text-emerald-700 dark:text-ledger-credit">
                   <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
                   <div>Your password has been successfully updated!</div>
                 </div>
@@ -613,7 +612,7 @@ export default function SettingsPage() {
                       value={oldPassword}
                       onChange={(e) => setOldPassword(e.target.value)}
                       required
-                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 pr-10 pl-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-white focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-white transition"
+                      className="w-full rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-surface pr-10 pl-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-bullion-400 focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-bullion-400/30 transition"
                       placeholder="Enter current password"
                     />
                     <button
@@ -638,7 +637,7 @@ export default function SettingsPage() {
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
                       minLength={8}
-                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 pr-10 pl-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-white focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-white transition"
+                      className="w-full rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-surface pr-10 pl-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-bullion-400 focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-bullion-400/30 transition"
                       placeholder="Enter new password (min. 8 characters)"
                     />
                     <button
@@ -663,7 +662,7 @@ export default function SettingsPage() {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
                       minLength={8}
-                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 pr-10 pl-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-white focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-white transition"
+                      className="w-full rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-surface pr-10 pl-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-bullion-400 focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-bullion-400/30 transition"
                       placeholder="Repeat new password"
                     />
                     <button
@@ -677,27 +676,27 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Password Criteria Checklist */}
-                <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800/60 p-4 space-y-2">
+                <div className="rounded-2xl bg-slate-50 dark:bg-vault-surface border border-slate-200/60 dark:border-vault-border p-4 space-y-2 font-mono">
                   <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Password Requirements
                   </div>
                   <div className="space-y-1.5 text-xs">
-                    <div className={`flex items-center gap-2 ${isPasswordLengthValid ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-slate-400"}`}>
-                      <CheckCircle2 className={`h-3.5 w-3.5 ${isPasswordLengthValid ? "text-emerald-500" : "text-slate-300 dark:text-slate-600"}`} />
+                    <div className={`flex items-center gap-2 ${isPasswordLengthValid ? "text-emerald-600 dark:text-ledger-credit font-medium" : "text-slate-400"}`}>
+                      <CheckCircle2 className={`h-3.5 w-3.5 ${isPasswordLengthValid ? "text-emerald-500 dark:text-ledger-credit" : "text-slate-300 dark:text-slate-600"}`} />
                       <span>At least 8 characters long</span>
                     </div>
-                    <div className={`flex items-center gap-2 ${isPasswordMatch ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-slate-400"}`}>
-                      <CheckCircle2 className={`h-3.5 w-3.5 ${isPasswordMatch ? "text-emerald-500" : "text-slate-300 dark:text-slate-600"}`} />
+                    <div className={`flex items-center gap-2 ${isPasswordMatch ? "text-emerald-600 dark:text-ledger-credit font-medium" : "text-slate-400"}`}>
+                      <CheckCircle2 className={`h-3.5 w-3.5 ${isPasswordMatch ? "text-emerald-500 dark:text-ledger-credit" : "text-slate-300 dark:text-slate-600"}`} />
                       <span>Passwords match</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-vault-border">
                   <button
                     type="submit"
                     disabled={securitySubmitting || !isPasswordLengthValid || !isPasswordMatch}
-                    className="flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-white px-5 py-2.5 text-xs font-bold text-white dark:text-slate-900 hover:opacity-90 transition disabled:opacity-50 shadow-sm active:scale-95"
+                    className="flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-bullion-500 dark:hover:bg-bullion-400 dark:text-vault-obsidian px-5 py-2.5 text-xs font-bold text-white hover:opacity-95 transition disabled:opacity-50 shadow-xs dark:shadow-bullion-glow active:scale-95"
                   >
                     {securitySubmitting ? (
                       <>
@@ -718,10 +717,10 @@ export default function SettingsPage() {
 
           {/* TAB 3: Transaction PIN */}
           {activeTab === "pin" && (
-            <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/60 backdrop-blur-xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="rounded-3xl border border-[#E2DDD0] dark:border-vault-border bg-white dark:bg-vault-card p-6 sm:p-8 shadow-xs dark:shadow-card-depth space-y-6 transition-colors duration-300">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Key className="h-5 w-5 text-emerald-500" />
+                  <Key className="h-5 w-5 text-bullion-500" />
                   6-Digit Transaction PIN
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -731,8 +730,8 @@ export default function SettingsPage() {
 
               {/* Status Banner */}
               {user.has_pin ? (
-                <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/70 dark:bg-emerald-950/30 p-4 text-xs text-emerald-800 dark:text-emerald-300">
-                  <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
+                <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/70 dark:bg-emerald-950/30 p-4 text-xs text-emerald-800 dark:text-ledger-credit">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-600 dark:text-ledger-credit" />
                   <div>
                     <span className="font-bold">Transaction PIN is Active:</span> Your 6-digit PIN is currently protecting your transfers and ATM withdrawals. You can change your PIN anytime below by verifying your account password.
                   </div>
@@ -754,7 +753,7 @@ export default function SettingsPage() {
               )}
 
               {pinSuccess && (
-                <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-xs text-emerald-700 dark:text-emerald-400">
+                <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-xs text-emerald-700 dark:text-ledger-credit">
                   <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
                   <div>Your 6-digit transaction PIN has been successfully updated and activated!</div>
                 </div>
@@ -772,7 +771,7 @@ export default function SettingsPage() {
                       value={pinPassword}
                       onChange={(e) => setPinPassword(e.target.value)}
                       required
-                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 pr-10 pl-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-white focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-white transition"
+                      className="w-full rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-surface pr-10 pl-3.5 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-bullion-400 focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-bullion-400/30 transition"
                       placeholder="Enter account password"
                     />
                     <button
@@ -801,7 +800,7 @@ export default function SettingsPage() {
                       value={newPin}
                       onChange={(e) => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
                       required
-                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs font-mono tracking-widest text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-white focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-white transition text-center"
+                      className="w-full rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-surface px-3.5 py-2.5 text-xs font-mono tracking-widest text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-bullion-400 focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-bullion-400/30 transition text-center"
                       placeholder="••••••"
                     />
                   </div>
@@ -818,34 +817,34 @@ export default function SettingsPage() {
                       value={confirmPin}
                       onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
                       required
-                      className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-xs font-mono tracking-widest text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-white focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-white transition text-center"
+                      className="w-full rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-surface px-3.5 py-2.5 text-xs font-mono tracking-widest text-slate-900 dark:text-white placeholder-slate-400 focus:border-slate-900 dark:focus:border-bullion-400 focus:outline-none focus:ring-1 focus:ring-slate-900 dark:focus:ring-bullion-400/30 transition text-center"
                       placeholder="••••••"
                     />
                   </div>
                 </div>
 
                 {/* PIN Criteria Checklist */}
-                <div className="rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800/60 p-4 space-y-2">
+                <div className="rounded-2xl bg-slate-50 dark:bg-vault-surface border border-slate-200/60 dark:border-vault-border p-4 space-y-2 font-mono">
                   <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     PIN Requirements
                   </div>
                   <div className="space-y-1.5 text-xs">
-                    <div className={`flex items-center gap-2 ${isPinValidLength ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-slate-400"}`}>
-                      <CheckCircle2 className={`h-3.5 w-3.5 ${isPinValidLength ? "text-emerald-500" : "text-slate-300 dark:text-slate-600"}`} />
+                    <div className={`flex items-center gap-2 ${isPinValidLength ? "text-emerald-600 dark:text-ledger-credit font-medium" : "text-slate-400"}`}>
+                      <CheckCircle2 className={`h-3.5 w-3.5 ${isPinValidLength ? "text-emerald-500 dark:text-ledger-credit" : "text-slate-300 dark:text-slate-600"}`} />
                       <span>Exactly 6 numeric digits (0-9)</span>
                     </div>
-                    <div className={`flex items-center gap-2 ${isPinMatch ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-slate-400"}`}>
-                      <CheckCircle2 className={`h-3.5 w-3.5 ${isPinMatch ? "text-emerald-500" : "text-slate-300 dark:text-slate-600"}`} />
+                    <div className={`flex items-center gap-2 ${isPinMatch ? "text-emerald-600 dark:text-ledger-credit font-medium" : "text-slate-400"}`}>
+                      <CheckCircle2 className={`h-3.5 w-3.5 ${isPinMatch ? "text-emerald-500 dark:text-ledger-credit" : "text-slate-300 dark:text-slate-600"}`} />
                       <span>PINs match</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-vault-border">
                   <button
                     type="submit"
                     disabled={pinSubmitting || !isPinValidLength || !isPinMatch || !pinPassword}
-                    className="flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-white px-5 py-2.5 text-xs font-bold text-white dark:text-slate-900 hover:opacity-90 transition disabled:opacity-50 shadow-sm active:scale-95"
+                    className="flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-bullion-500 dark:hover:bg-bullion-400 dark:text-vault-obsidian px-5 py-2.5 text-xs font-bold text-white hover:opacity-95 transition disabled:opacity-50 shadow-xs dark:shadow-bullion-glow active:scale-95"
                   >
                     {pinSubmitting ? (
                       <>
@@ -866,11 +865,11 @@ export default function SettingsPage() {
 
           {/* TAB 4: Linked Accounts */}
           {activeTab === "accounts" && (
-            <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/60 backdrop-blur-xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="rounded-3xl border border-[#E2DDD0] dark:border-vault-border bg-white dark:bg-vault-card p-6 sm:p-8 shadow-xs dark:shadow-card-depth space-y-6 transition-colors duration-300">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <CreditCard className="h-5 w-5 text-emerald-500" />
+                    <CreditCard className="h-5 w-5 text-bullion-500" />
                     Linked Banking Accounts
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -880,7 +879,7 @@ export default function SettingsPage() {
 
                 <Link
                   href="/"
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition shadow-sm"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-surface px-3.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-vault-elevated transition shadow-xs"
                 >
                   <span>Go to Dashboard</span>
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -895,25 +894,25 @@ export default function SettingsPage() {
               )}
 
               {phoneLinkSuccess && (
-                <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-xs text-emerald-700 dark:text-emerald-400">
+                <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 p-4 text-xs text-emerald-700 dark:text-ledger-credit">
                   <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
                   <div>{phoneLinkSuccess}</div>
                 </div>
               )}
 
               {/* PromptPay / Phone Deposit Connection Card */}
-              <div className="rounded-2xl border border-indigo-200/70 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/70 via-white to-blue-50/40 dark:from-indigo-950/30 dark:via-slate-900/40 dark:to-slate-900/40 p-5 sm:p-6 shadow-sm">
+              <div className="rounded-2xl border border-bullion-500/30 dark:border-bullion-500/20 bg-gradient-to-br from-bullion-50/40 via-white to-slate-50/40 dark:from-vault-surface dark:via-vault-card dark:to-vault-elevated p-5 sm:p-6 shadow-xs dark:shadow-card-depth">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-start gap-3.5">
-                    <div className="h-10 w-10 shrink-0 rounded-xl bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-white shadow-sm shadow-indigo-500/20">
-                      <Zap className="h-5 w-5" />
+                    <div className="h-10 w-10 shrink-0 rounded-xl bg-bullion-500 dark:bg-bullion-500/20 flex items-center justify-center text-white dark:text-bullion-400 border dark:border-bullion-500/30 shadow-xs">
+                      <Zap className="h-5 w-5 text-vault-obsidian dark:text-bullion-400" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-sm text-slate-900 dark:text-white">
                           PromptPay & ATM Deposit Link
                         </span>
-                        <span className="rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold px-2 py-0.5">
+                        <span className="rounded-full bg-bullion-500/10 dark:bg-bullion-500/20 text-bullion-800 dark:text-bullion-300 border border-bullion-500/30 text-[10px] font-mono font-bold px-2 py-0.5">
                           Instant Cash Routing
                         </span>
                       </div>
@@ -925,9 +924,9 @@ export default function SettingsPage() {
 
                   <div className="flex items-center gap-2">
                     {user.phone_number ? (
-                      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-right">
-                        <div className="text-[10px] uppercase font-bold text-slate-400">Registered Mobile</div>
-                        <div className="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 mt-0.5">
+                      <div className="rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-surface px-3.5 py-2 text-right">
+                        <div className="text-[10px] uppercase font-bold text-slate-400 font-mono">Registered Mobile</div>
+                        <div className="font-mono font-bold text-xs text-bullion-700 dark:text-bullion-400 flex items-center gap-1.5 mt-0.5">
                           <Smartphone className="h-3.5 w-3.5" />
                           {user.phone_number}
                         </div>
@@ -935,7 +934,7 @@ export default function SettingsPage() {
                     ) : (
                       <button
                         onClick={() => setActiveTab("profile")}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 text-xs font-semibold shadow-sm transition"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-bullion-600 hover:bg-bullion-500 text-white dark:text-vault-obsidian px-3.5 py-2 text-xs font-semibold shadow-xs transition"
                       >
                         <Phone className="h-3.5 w-3.5" />
                         <span>Add Phone in Profile</span>
@@ -945,12 +944,12 @@ export default function SettingsPage() {
                 </div>
 
                 {user.phone_number && (
-                  <div className="mt-4 pt-4 border-t border-indigo-100 dark:border-indigo-900/40 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="mt-4 pt-4 border-t border-bullion-100 dark:border-vault-border flex flex-wrap items-center justify-between gap-3 text-xs">
                     {(() => {
                       const linked = accounts.find((a) => a.linked_phone === user.phone_number);
                       if (linked) {
                         return (
-                          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                          <div className="flex items-center gap-2 text-emerald-700 dark:text-ledger-credit">
                             <CheckCircle2 className="h-4 w-4" />
                             <span>
                               Active deposit account: <strong className="font-mono">{formatAccountNumber(linked.account_number)}</strong> ({linked.account_type})
@@ -971,13 +970,13 @@ export default function SettingsPage() {
 
               {/* Accounts List */}
               <div className="space-y-3">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-1">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-1 font-mono">
                   Your Accounts ({accounts.length})
                 </div>
 
                 {accounts.map((acc) => {
                   const meta = getAccountMeta(acc.id);
-                  const colorPreset = COLOR_PRESETS[meta.color] || COLOR_PRESETS.slate;
+                  const colorPreset = COLOR_PRESETS[meta.color] || COLOR_PRESETS.bullion;
                   const isPhoneLinked = acc.linked_phone && user.phone_number && acc.linked_phone === user.phone_number;
                   const isProcessing = linkingAccountId === acc.id && phoneLinkSubmitting;
 
@@ -986,12 +985,12 @@ export default function SettingsPage() {
                       key={acc.id}
                       className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border p-4 transition ${
                         isPhoneLinked
-                          ? "border-emerald-300/80 dark:border-emerald-700/80 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-sm"
-                          : "border-slate-200/60 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-800/30 hover:border-slate-300 dark:hover:border-slate-700"
+                          ? "border-emerald-300/80 dark:border-emerald-700/80 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-xs"
+                          : "border-slate-200/60 dark:border-vault-border bg-slate-50 dark:bg-vault-surface hover:border-slate-300 dark:hover:border-vault-highlight"
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-bold text-xs ${colorPreset.badge}`}>
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-bold text-xs font-mono ${colorPreset.badge}`}>
                           #{acc.id}
                         </div>
                         <div>
@@ -999,11 +998,11 @@ export default function SettingsPage() {
                             <span className="font-bold text-xs text-slate-900 dark:text-white">
                               {meta.nickname || `${acc.account_type} Account`}
                             </span>
-                            <span className="rounded-full bg-slate-200 dark:bg-slate-700 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:text-slate-300">
+                            <span className="rounded-full bg-slate-200 dark:bg-vault-elevated px-2 py-0.5 text-[10px] font-mono uppercase font-semibold text-slate-700 dark:text-slate-300">
                               {acc.account_type}
                             </span>
                             {isPhoneLinked && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 px-2 py-0.5 text-[10px] font-mono font-bold text-emerald-700 dark:text-ledger-credit">
                                 <Zap className="h-2.5 w-2.5 fill-emerald-500 text-emerald-500" />
                                 Phone Deposit Active
                               </span>
@@ -1015,10 +1014,10 @@ export default function SettingsPage() {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200 dark:border-slate-700/50">
+                      <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200 dark:border-vault-border">
                         <div className="text-right mr-2">
-                          <div className="text-[10px] uppercase font-bold text-slate-400">Balance</div>
-                          <div className="font-mono font-bold text-sm text-slate-900 dark:text-white">
+                          <div className="text-[10px] uppercase font-mono font-bold text-slate-400">Balance</div>
+                          <div className="font-mono font-bold text-sm text-slate-900 dark:text-white tabular-nums">
                             {formatMoney(acc.balance, acc.currency)}
                           </div>
                         </div>
@@ -1044,7 +1043,7 @@ export default function SettingsPage() {
                             type="button"
                             disabled={isProcessing || !user.phone_number}
                             onClick={() => handleLinkPhone(acc.id)}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-indigo-50 hover:border-indigo-200 dark:hover:bg-indigo-950/30 dark:hover:border-indigo-800 transition disabled:opacity-40"
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-elevated px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-bullion-50 dark:hover:bg-vault-surface hover:border-bullion-300 dark:hover:border-bullion-500/50 transition disabled:opacity-40"
                             title={
                               !user.phone_number
                                 ? "Register a phone number in profile first"
@@ -1052,9 +1051,9 @@ export default function SettingsPage() {
                             }
                           >
                             {isProcessing ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-bullion-500" />
                             ) : (
-                              <Link2 className="h-3.5 w-3.5 text-indigo-500" />
+                              <Link2 className="h-3.5 w-3.5 text-bullion-500" />
                             )}
                             <span>Connect Phone</span>
                           </button>
@@ -1062,7 +1061,7 @@ export default function SettingsPage() {
 
                         <Link
                           href={`/ledger`}
-                          className="rounded-xl border border-slate-200 dark:border-slate-700 p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700 transition"
+                          className="rounded-xl border border-slate-200 dark:border-vault-border p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-vault-elevated transition"
                           title="View Ledger Statement"
                         >
                           <ArrowRight className="h-4 w-4" />

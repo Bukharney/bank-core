@@ -22,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
-      <body className="min-h-screen bg-[#f8fafc] dark:bg-[#070b14] text-slate-900 dark:text-slate-100 selection:bg-slate-900 dark:selection:bg-slate-100 selection:text-white dark:selection:text-slate-900 flex font-sans antialiased transition-colors duration-200">
+      <body className="min-h-screen bg-[#f7f5ee] dark:bg-vault-obsidian text-slate-900 dark:text-slate-100 selection:bg-bullion-500/20 dark:selection:bg-bullion-500/30 selection:text-bullion-700 dark:selection:text-bullion-300 flex font-sans antialiased transition-colors duration-300 bg-guilloche-pattern">
         <ThemeProvider>
           <ToastProvider>
             <AuthProvider>

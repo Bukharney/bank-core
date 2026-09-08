@@ -12,7 +12,9 @@ interface SidebarContextType {
   closeMobile: () => void;
   showAtmSimulator: boolean;
   setShowAtmSimulator: (show: boolean) => void;
-  openAtmSimulator: () => void;
+  atmShowPortSelector: boolean;
+  atmInitialId: number;
+  openAtmSimulator: (options?: { showPortSelector?: boolean; initialAtmId?: number }) => void;
 }
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
@@ -21,6 +23,8 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
   const [isCollapsed, setIsCollapsedState] = useState<boolean>(false);
   const [isMobileOpen, setIsMobileOpen] = useState<boolean>(false);
   const [showAtmSimulator, setShowAtmSimulator] = useState<boolean>(false);
+  const [atmShowPortSelector, setAtmShowPortSelector] = useState<boolean>(false);
+  const [atmInitialId, setAtmInitialId] = useState<number>(1);
   const [mounted, setMounted] = useState<boolean>(false);
 
   useEffect(() => {
@@ -56,7 +60,11 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
     setIsMobileOpen(false);
   };
 
-  const openAtmSimulator = () => {
+  const openAtmSimulator = (options?: { showPortSelector?: boolean; initialAtmId?: number }) => {
+    setAtmShowPortSelector(options?.showPortSelector ?? false);
+    if (options?.initialAtmId) {
+      setAtmInitialId(options.initialAtmId);
+    }
     setShowAtmSimulator(true);
     setIsMobileOpen(false);
   };
@@ -85,6 +93,8 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
         closeMobile,
         showAtmSimulator,
         setShowAtmSimulator,
+        atmShowPortSelector,
+        atmInitialId,
         openAtmSimulator,
       }}
     >

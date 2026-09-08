@@ -26,6 +26,7 @@ interface ATMSimulatorModalProps {
   initialPhone?: string;
   initialCode?: string;
   initialAtmId?: number;
+  showPortSelector?: boolean;
   onClose: () => void;
   onSuccess?: () => void;
 }
@@ -36,6 +37,7 @@ export default function ATMSimulatorModal({
   initialPhone = "",
   initialCode = "",
   initialAtmId = 1,
+  showPortSelector = false,
   onClose,
   onSuccess,
 }: ATMSimulatorModalProps) {
@@ -104,6 +106,18 @@ export default function ATMSimulatorModal({
     100;
 
   const handleKeyPress = (num: string) => {
+    if (mode === "menu") {
+      if (num === "1") {
+        setMode("deposit");
+        setDepositStep("phone");
+        setErrorMessage("");
+      } else if (num === "2") {
+        setMode("withdrawal");
+        setWithdrawStep("phone");
+        setErrorMessage("");
+      }
+      return;
+    }
     if (mode === "withdrawal") {
       if (withdrawStep === "phone") {
         if (withdrawPhone.length < 10) setWithdrawPhone((prev) => prev + num);
@@ -118,12 +132,20 @@ export default function ATMSimulatorModal({
   };
 
   const handleClear = () => {
+    if (mode === "menu") return;
     if (mode === "withdrawal") {
-      if (withdrawStep === "phone") setWithdrawPhone("");
-      if (withdrawStep === "code") setWithdrawCode("");
+      if (withdrawStep === "phone") {
+        if (withdrawPhone.length > 0) setWithdrawPhone((prev) => prev.slice(0, -1));
+        else resetToMenu();
+      } else if (withdrawStep === "code") {
+        if (withdrawCode.length > 0) setWithdrawCode((prev) => prev.slice(0, -1));
+        else setWithdrawStep("phone");
+      }
     } else if (mode === "deposit") {
-      if (depositStep === "phone") setDepositPhone("");
-      if (depositStep === "feeder") {
+      if (depositStep === "phone") {
+        if (depositPhone.length > 0) setDepositPhone((prev) => prev.slice(0, -1));
+        else resetToMenu();
+      } else if (depositStep === "feeder") {
         setNotesCount({ "1000": 0, "500": 0, "100": 0 });
       }
     }
@@ -288,68 +310,84 @@ export default function ATMSimulatorModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/65 backdrop-blur-sm animate-fade-in overflow-y-auto">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-sm animate-fade-in overflow-y-auto">
       {/* ATM Cabinet Bezel */}
-      <div className="relative w-full max-w-md my-auto max-h-[94vh] flex flex-col rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] p-5 sm:p-6 shadow-2xl overflow-y-auto">
+      <div className="relative w-full max-w-md my-auto max-h-[94vh] flex flex-col rounded-3xl border-2 border-slate-300 dark:border-vault-border bg-slate-50 dark:bg-vault-card p-5 sm:p-6 shadow-2xl overflow-y-auto ring-1 ring-slate-900/10 dark:ring-vault-highlight/30">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 z-20 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition"
+          className="absolute right-4 top-4 z-20 rounded-full p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-200/80 dark:text-slate-400 dark:hover:text-white dark:hover:bg-vault-surface border border-transparent hover:border-slate-300 dark:hover:border-vault-border transition"
           title="Close ATM"
         >
           <X className="h-5 w-5" />
         </button>
 
         {/* ATM Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-3.5 pr-8">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-vault-border pb-3 mb-3.5 pr-8">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 dark:bg-vault-surface border border-bullion-500/40 text-bullion-400 shadow-sm">
               <Cpu className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-xs font-bold tracking-wider text-slate-900 dark:text-white">BANK CORE ATM / CDM</h2>
-              <div className="flex items-center gap-1.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-xs font-bold tracking-widest text-slate-900 dark:text-white font-mono">
+                  BANK CORE CDM / ATM
+                </h2>
+                <span className="text-[8px] font-mono font-bold uppercase text-bullion-700 dark:text-bullion-400 bg-bullion-500/15 border border-bullion-500/40 px-1 py-0.5 rounded">
+                  HARDWARE
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] text-emerald-700 dark:text-ledger-credit font-mono mt-0.5 font-semibold">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span>ONLINE • CASH DEPOSIT READY</span>
               </div>
             </div>
           </div>
 
-          {/* ATM Port Selector */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
-            {[1, 2, 3].map((id) => (
-              <button
-                key={id}
-                onClick={() => setAtmId(id)}
-                className={`px-2 py-0.5 text-[11px] font-bold rounded transition ${
-                  atmId === id
-                    ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
-                    : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white"
-                }`}
-              >
-                #{id}
-              </button>
-            ))}
-          </div>
+          {/* ATM Port Selector (Visible in Admin / Operator Mode) */}
+          {showPortSelector ? (
+            <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-vault-surface p-1 rounded-lg border border-slate-300 dark:border-vault-border font-mono">
+              {[1, 2, 3].map((id) => (
+                <button
+                  key={id}
+                  onClick={() => setAtmId(id)}
+                  className={`px-2.5 py-0.5 text-[10px] font-bold rounded transition ${
+                    atmId === id
+                      ? "bg-white dark:bg-vault-elevated text-slate-900 dark:text-bullion-400 shadow-xs border border-slate-300 dark:border-vault-highlight"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-vault-card"
+                  }`}
+                >
+                  #{id}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-ledger-credit text-[10px] font-mono font-bold">
+              <span>EXPRESS KIOSK</span>
+            </div>
+          )}
         </div>
 
-        {/* Digital Screen */}
-        <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 p-4 shadow-inner min-h-[190px] flex flex-col justify-between text-slate-100">
+        {/* Retro-Luminescent LCD Screen */}
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-900/40 bg-[#060D0A] p-4 shadow-inner min-h-[195px] flex flex-col justify-between text-emerald-300 font-mono">
+          {/* Subtle CRT Scanlines Effect */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_4px] pointer-events-none opacity-40" />
+
           {/* Top Bar on LCD */}
-          <div className="flex items-center justify-between text-[9px] font-mono text-slate-400 pb-2 border-b border-slate-800">
+          <div className="relative z-10 flex items-center justify-between text-[9px] font-mono text-emerald-500/80 pb-2 border-b border-emerald-900/40">
             <div className="flex items-center gap-1.5">
               {mode !== "menu" && (
                 <button
                   onClick={resetToMenu}
-                  className="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 font-bold"
+                  className="text-emerald-400 hover:text-emerald-200 flex items-center gap-0.5 font-bold"
                 >
                   <ArrowLeft className="h-2.5 w-2.5" />
                   <span>MENU</span>
                 </button>
               )}
-              <span>TERMINAL :808{atmId}</span>
+              <span>{showPortSelector ? `TERMINAL :808${atmId}` : `KIOSK ATM-0${atmId}`}</span>
             </div>
-            <span className="text-emerald-400 font-bold uppercase">
+            <span className="text-emerald-400 font-bold uppercase tracking-wider">
               {mode === "menu"
                 ? "MAIN MENU"
                 : mode === "deposit"
@@ -718,130 +756,139 @@ export default function ATMSimulatorModal({
         </div>
 
         {/* Cash Slot (Dispenser / Feeder) */}
-        <div className="mt-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-2.5">
-          <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 dark:text-slate-400 mb-1 px-1">
-            <span className="flex items-center gap-1">
-              <Banknote className="h-3 w-3 text-slate-700 dark:text-slate-300" />
+        <div className="mt-3.5 rounded-2xl border border-slate-300 dark:border-vault-border bg-slate-200/70 dark:bg-vault-surface/70 p-2.5 shadow-inner">
+          <div className="flex items-center justify-between text-[10px] font-mono text-slate-800 dark:text-slate-200 mb-1.5 px-1">
+            <span className="flex items-center gap-1.5 font-bold">
+              <Banknote className="h-3.5 w-3.5 text-bullion-600 dark:text-bullion-400" />
               <span>
                 {mode === "deposit"
-                  ? "CASH FEEDER (CDM SLOT)"
-                  : "CASH DISPENSER"}
+                  ? "CASH FEEDER (CDM SHUTTER)"
+                  : "CASH DISPENSER SHUTTER"}
               </span>
             </span>
             <span
-              className={
+              className={`font-mono text-[9px] font-bold px-2 py-0.5 rounded border ${
                 withdrawStep === "success" || depositStep === "receipt"
-                  ? "text-emerald-600 dark:text-emerald-400 font-bold"
+                  ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-ledger-credit border-emerald-400 dark:border-emerald-700 animate-pulse"
                   : depositStep === "feeder"
-                  ? "text-amber-500 font-bold animate-pulse"
-                  : "text-slate-400"
-              }
+                  ? "bg-amber-100 dark:bg-bullion-500/20 text-amber-800 dark:text-bullion-300 border-amber-400 dark:border-bullion-500/50 animate-pulse"
+                  : "bg-slate-300/80 dark:bg-vault-card text-slate-700 dark:text-slate-300 border-slate-400/50 dark:border-vault-border"
+              }`}
             >
               {withdrawStep === "success"
-                ? "● CASH READY"
+                ? "● DISPENSED"
                 : depositStep === "feeder"
-                ? "● INSERT NOTES"
+                ? "● READY FOR BILLS"
                 : depositStep === "receipt"
-                ? "● CASH ACCEPTED"
-                : "● READY"}
+                ? "● BILLS ACCEPTED"
+                : "● ARMED"}
             </span>
           </div>
 
           <div
-            className={`relative flex h-8 w-full items-center justify-center rounded-lg border transition-all ${
+            className={`relative flex h-9 w-full items-center justify-center rounded-xl border transition-all ${
               withdrawStep === "success"
-                ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 shadow-sm"
+                ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-ledger-credit shadow-sm animate-slip-feed"
                 : depositStep === "feeder"
-                ? "border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 animate-pulse"
-                : "border-slate-300 dark:border-slate-800 bg-slate-200 dark:bg-slate-800"
+                ? "border-bullion-500/70 bg-bullion-500/10 text-bullion-700 dark:text-bullion-300 animate-pulse"
+                : "border-slate-400/70 dark:border-vault-border bg-slate-300/80 dark:bg-vault-card shadow-inner"
             }`}
           >
             {withdrawStep === "success" ? (
-              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 animate-bounce">
-                <Banknote className="h-3.5 w-3.5" />
-                <span>[ TAKE CASH HERE ]</span>
+              <div className="flex items-center gap-1.5 text-xs font-bold font-mono text-emerald-700 dark:text-ledger-credit animate-bounce">
+                <Banknote className="h-4 w-4" />
+                <span>[ COLLECT CASH HERE ]</span>
               </div>
             ) : depositStep === "feeder" ? (
-              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
-                <Banknote className="h-3.5 w-3.5" />
-                <span>[ FEED BANKNOTES ]</span>
+              <div className="flex items-center gap-1.5 text-xs font-bold font-mono text-bullion-700 dark:text-bullion-400">
+                <Banknote className="h-4 w-4" />
+                <span>[ INSERT BANKNOTES ]</span>
               </div>
             ) : (
-              <div className="h-1 w-2/3 rounded-full bg-slate-400 dark:bg-slate-600" />
+              <div className="h-2 w-3/4 rounded-full bg-slate-800 dark:bg-vault-highlight shadow-inner border border-slate-950/20" />
             )}
           </div>
         </div>
 
-        {/* Tactile Keypad */}
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
+        {/* Tactile Keypad (EPP PIN Pad Plate) */}
+        <div className="mt-3.5 rounded-2xl border border-slate-300 dark:border-vault-border bg-slate-200/70 dark:bg-vault-surface/70 p-2.5 shadow-inner">
+          <div className="flex items-center justify-between px-1 mb-2">
+            <span className="text-[9px] font-mono font-bold tracking-wider text-slate-600 dark:text-slate-400 uppercase">
+              ENCRYPTING PIN PAD (EPP)
+            </span>
+            <span className="flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-700 dark:text-ledger-credit">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              SECURE KEYPAD
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 font-mono">
+            {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((num) => (
+              <button
+                key={num}
+                onClick={() => handleKeyPress(num)}
+                disabled={
+                  loading ||
+                  withdrawStep === "dispensing" ||
+                  withdrawStep === "success" ||
+                  depositStep === "processing" ||
+                  depositStep === "receipt"
+                }
+                className="flex h-11 items-center justify-center rounded-xl border border-slate-300 dark:border-vault-highlight bg-white dark:bg-vault-card text-base font-bold text-slate-900 dark:text-white shadow-[0_2px_0_#cbd5e1] dark:shadow-[0_2px_0_#070a10] hover:bg-slate-50 dark:hover:bg-vault-surface hover:border-slate-400 active:translate-y-0.5 active:shadow-none transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {num}
+              </button>
+            ))}
+
+            {/* CLEAR / BACKSPACE */}
             <button
-              key={num}
-              onClick={() => handleKeyPress(num)}
+              onClick={handleClear}
               disabled={
                 loading ||
-                mode === "menu" ||
+                withdrawStep === "dispensing" ||
+                depositStep === "processing"
+              }
+              className="flex h-11 items-center justify-center rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-xs font-bold text-amber-900 dark:text-amber-300 shadow-[0_2px_0_#fcd34d] dark:shadow-[0_2px_0_#451a03] active:translate-y-0.5 active:shadow-none transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              CLEAR
+            </button>
+
+            {/* 0 */}
+            <button
+              onClick={() => handleKeyPress("0")}
+              disabled={
+                loading ||
                 withdrawStep === "dispensing" ||
                 withdrawStep === "success" ||
                 depositStep === "processing" ||
                 depositStep === "receipt"
               }
-              className="flex h-10 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-mono text-base font-bold text-slate-800 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 transition disabled:opacity-50"
+              className="flex h-11 items-center justify-center rounded-xl border border-slate-300 dark:border-vault-highlight bg-white dark:bg-vault-card text-base font-bold text-slate-900 dark:text-white shadow-[0_2px_0_#cbd5e1] dark:shadow-[0_2px_0_#070a10] hover:bg-slate-50 dark:hover:bg-vault-surface hover:border-slate-400 active:translate-y-0.5 active:shadow-none transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {num}
+              0
             </button>
-          ))}
 
-          {/* CLEAR / CANCEL */}
-          <button
-            onClick={handleClear}
-            disabled={
-              loading ||
-              mode === "menu" ||
-              withdrawStep === "dispensing" ||
-              depositStep === "processing"
-            }
-            className="flex h-10 items-center justify-center rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/30 font-mono text-xs font-bold text-amber-700 dark:text-amber-400 shadow-sm hover:bg-amber-100 dark:hover:bg-amber-900/50 active:scale-95 transition disabled:opacity-50"
-          >
-            CLEAR
-          </button>
-
-          {/* 0 */}
-          <button
-            onClick={() => handleKeyPress("0")}
-            disabled={
-              loading ||
-              mode === "menu" ||
-              withdrawStep === "dispensing" ||
-              withdrawStep === "success" ||
-              depositStep === "processing" ||
-              depositStep === "receipt"
-            }
-            className="flex h-10 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-mono text-base font-bold text-slate-800 dark:text-slate-200 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 transition disabled:opacity-50"
-          >
-            0
-          </button>
-
-          {/* ENTER / ACTION */}
-          <button
-            onClick={() => {
-              if (withdrawStep === "success" || depositStep === "receipt") {
-                resetToMenu();
-              } else if (mode === "menu") {
-                setMode("deposit");
-              } else {
-                handleEnter();
-              }
-            }}
-            disabled={loading || withdrawStep === "dispensing" || depositStep === "processing"}
-            className="flex h-10 items-center justify-center rounded-xl border border-slate-900 dark:border-white bg-slate-900 dark:bg-white font-mono text-xs font-bold text-white dark:text-slate-900 shadow-sm hover:bg-slate-800 dark:hover:bg-slate-100 active:scale-95 transition disabled:opacity-50"
-          >
-            {withdrawStep === "success" || depositStep === "receipt"
-              ? "FINISH"
-              : depositStep === "feeder"
-              ? "DEPOSIT"
-              : "ENTER"}
-          </button>
+            {/* ENTER / ACTION */}
+            <button
+              onClick={() => {
+                if (withdrawStep === "success" || depositStep === "receipt") {
+                  resetToMenu();
+                } else if (mode === "menu") {
+                  setMode("deposit");
+                } else {
+                  handleEnter();
+                }
+              }}
+              disabled={loading || withdrawStep === "dispensing" || depositStep === "processing"}
+              className="flex h-11 items-center justify-center rounded-xl border border-slate-950 dark:border-bullion-400 bg-slate-900 hover:bg-slate-800 dark:bg-bullion-500 dark:hover:bg-bullion-400 text-xs font-bold text-white dark:text-vault-obsidian shadow-[0_2px_0_#020617] dark:shadow-[0_2px_0_#81682b] active:translate-y-0.5 active:shadow-none transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {withdrawStep === "success" || depositStep === "receipt"
+                ? "FINISH"
+                : depositStep === "feeder"
+                ? "DEPOSIT"
+                : "ENTER"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

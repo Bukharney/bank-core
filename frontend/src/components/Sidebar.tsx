@@ -15,6 +15,12 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   X,
+  Banknote,
+  Server,
+  ShieldCheck,
+  ShieldAlert,
+  ArrowLeft,
+  Activity,
 } from "lucide-react";
 import ATMSimulatorModal from "./ATMSimulatorModal";
 
@@ -29,7 +35,11 @@ export default function Sidebar() {
     showAtmSimulator,
     setShowAtmSimulator,
     openAtmSimulator,
+    atmShowPortSelector,
+    atmInitialId,
   } = useSidebar();
+
+  const isAdmin = pathname.startsWith("/admin");
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -49,34 +59,57 @@ export default function Sidebar() {
 
   if (!user) return null;
 
-  const navLinks = [
+  // Regular Personal Banking Navigation
+  const userNavLinks = [
     {
       href: "/",
       label: "Dashboard",
-      subtitle: "Overview & Accounts",
+      subtitle: "Accounts & Balance",
       icon: LayoutDashboard,
     },
     {
       href: "/transfer",
-      label: "Transfers",
-      subtitle: "Atomic P2P & External",
+      label: "Send Money",
+      subtitle: "Instant Transfer",
       icon: ArrowLeftRight,
-    },
-    {
-      href: "/ledger",
-      label: "Ledger",
-      subtitle: "Double-Entry Audit",
-      icon: BookOpenText,
     },
   ];
 
-  const toolLinks = [
+  // Admin / Operations Navigation
+  const adminNavLinks = [
     {
-      id: "atm",
-      label: "ATM Simulator",
-      subtitle: "Hardware Keypad Demo",
-      icon: Cpu,
-      onClick: openAtmSimulator,
+      href: "/admin",
+      label: "Operations",
+      subtitle: "Telemetry & Liquidity",
+      icon: LayoutDashboard,
+    },
+    {
+      href: "/admin/ledger",
+      label: "General Ledger",
+      subtitle: "Double-Entry Journal",
+      icon: BookOpenText,
+    },
+    {
+      href: "/admin/nodes",
+      label: "ATM Fleet",
+      subtitle: "Cluster Hardware",
+      icon: Server,
+    },
+  ];
+
+  const userToolLinks = [
+    {
+      id: "atm-cash",
+      label: "Cardless ATM Cash",
+      subtitle: "Deposit & Withdraw",
+      icon: Banknote,
+      onClick: () => openAtmSimulator({ showPortSelector: false }),
+    },
+    {
+      href: "/admin",
+      label: "Admin Console",
+      subtitle: "Core Operations",
+      icon: ShieldAlert,
     },
     {
       href: "/settings",
@@ -86,6 +119,31 @@ export default function Sidebar() {
     },
   ];
 
+  const adminToolLinks = [
+    {
+      id: "atm-diag",
+      label: "ATM Diagnostics",
+      subtitle: "Multi-Node Hardware",
+      icon: Cpu,
+      onClick: () => openAtmSimulator({ showPortSelector: true }),
+    },
+    {
+      href: "/",
+      label: "Customer Portal",
+      subtitle: "Return to Banking",
+      icon: ArrowLeft,
+    },
+    {
+      href: "/settings",
+      label: "Settings",
+      subtitle: "Profile & Security",
+      icon: Settings,
+    },
+  ];
+
+  const navLinks = isAdmin ? adminNavLinks : userNavLinks;
+  const toolLinks = isAdmin ? adminToolLinks : userToolLinks;
+
   const sidebarContent = (isMobile: boolean = false) => {
     const collapsed = !isMobile && isCollapsed;
 
@@ -94,27 +152,32 @@ export default function Sidebar() {
         <div className="space-y-6">
           {/* Brand Header */}
           <div
-            className={`flex items-center h-14 border-b border-slate-200/80 dark:border-slate-800/80 shrink-0 ${
+            className={`flex items-center h-14 border-b border-[#E2DDD0] dark:border-vault-border shrink-0 ${
               collapsed ? "justify-center px-0" : "justify-between px-4"
             }`}
           >
             <Link
-              href="/"
+              href={isAdmin ? "/admin" : "/"}
               className={`flex items-center gap-2.5 transition-transform hover:opacity-90 ${
                 collapsed ? "justify-center" : ""
               }`}
               title="BankCore"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 dark:bg-vault-surface dark:border dark:border-bullion-500/30 text-bullion-400 shadow-sm">
                 <Landmark className="h-4 w-4" />
               </div>
               {!collapsed && (
                 <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white leading-none">
-                    BankCore
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono mt-0.5">
-                    Core Engine
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white leading-none">
+                      BankCore
+                    </span>
+                    <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-bullion-600 dark:text-bullion-400 bg-bullion-500/10 px-1 py-0.2 rounded border border-bullion-500/20">
+                      {isAdmin ? "OPS" : "THB"}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">
+                    {isAdmin ? "Operations Console" : "Personal Banking"}
                   </span>
                 </div>
               )}
@@ -124,7 +187,7 @@ export default function Sidebar() {
               <button
                 type="button"
                 onClick={closeMobile}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-vault-elevated transition-colors"
                 aria-label="Close sidebar"
               >
                 <X className="h-4 w-4" />
@@ -135,7 +198,7 @@ export default function Sidebar() {
               <button
                 type="button"
                 onClick={toggleCollapsed}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-vault-elevated transition-colors"
                 aria-label="Collapse sidebar (Ctrl+B)"
                 title="Collapse sidebar (Ctrl+B)"
               >
@@ -148,7 +211,7 @@ export default function Sidebar() {
           <div className={`${collapsed ? "px-2" : "px-3"} space-y-5`}>
             <div>
               {!collapsed && (
-                <div className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                <div className="px-2 pb-1.5 text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                   Navigation
                 </div>
               )}
@@ -168,14 +231,17 @@ export default function Sidebar() {
                           : "gap-3 rounded-xl px-2.5 py-2 text-xs font-medium"
                       } ${
                         isActive
-                          ? "bg-slate-900 text-white dark:bg-slate-800 dark:text-white dark:ring-1 dark:ring-slate-700/80 font-semibold shadow-sm"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
+                          ? "bg-slate-900 text-white dark:bg-vault-elevated dark:text-white dark:border dark:border-vault-highlight font-semibold shadow-sm relative overflow-hidden"
+                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-vault-surface/80 hover:text-slate-900 dark:hover:text-white"
                       }`}
                     >
+                      {isActive && (
+                        <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-bullion-500 rounded-r-full" />
+                      )}
                       <Icon
                         className={`h-4 w-4 shrink-0 transition-colors ${
                           isActive
-                            ? "text-white dark:text-white"
+                            ? "text-bullion-400 dark:text-bullion-400"
                             : "text-slate-400 dark:text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white"
                         }`}
                       />
@@ -193,7 +259,7 @@ export default function Sidebar() {
             {/* Tools & System Section */}
             <div>
               {!collapsed && (
-                <div className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                <div className="px-2 pb-1.5 text-[10px] font-mono font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                   Tools & System
                 </div>
               )}
@@ -209,13 +275,13 @@ export default function Sidebar() {
                         type="button"
                         onClick={tool.onClick}
                         title={collapsed ? tool.label : undefined}
-                        className={`group flex items-center transition-all text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white ${
+                        className={`group flex items-center transition-all text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-vault-surface hover:text-slate-900 dark:hover:text-white ${
                           collapsed
                             ? "h-10 w-10 mx-auto justify-center rounded-xl"
                             : "w-full gap-3 rounded-xl px-2.5 py-2 text-xs font-medium text-left"
                         }`}
                       >
-                        <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white" />
+                        <Icon className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500 group-hover:text-bullion-400 dark:group-hover:text-bullion-400 transition-colors" />
                         {!collapsed && (
                           <div className="min-w-0 flex-1 truncate">
                             <div>{tool.label}</div>
@@ -236,14 +302,17 @@ export default function Sidebar() {
                           : "gap-3 rounded-xl px-2.5 py-2 text-xs font-medium"
                       } ${
                         isActive
-                          ? "bg-slate-900 text-white dark:bg-slate-800 dark:text-white dark:ring-1 dark:ring-slate-700/80 font-semibold shadow-sm"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
+                          ? "bg-slate-900 text-white dark:bg-vault-elevated dark:text-white dark:border dark:border-vault-highlight font-semibold shadow-sm relative overflow-hidden"
+                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-vault-surface hover:text-slate-900 dark:hover:text-white"
                       }`}
                     >
+                      {isActive && (
+                        <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-bullion-500 rounded-r-full" />
+                      )}
                       <Icon
                         className={`h-4 w-4 shrink-0 transition-colors ${
                           isActive
-                            ? "text-white dark:text-white"
+                            ? "text-bullion-400 dark:text-bullion-400"
                             : "text-slate-400 dark:text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white"
                         }`}
                       />
@@ -262,29 +331,29 @@ export default function Sidebar() {
 
         {/* Sidebar Footer */}
         <div
-          className={`border-t border-slate-200/80 dark:border-slate-800/80 space-y-2 shrink-0 ${
+          className={`border-t border-[#E2DDD0] dark:border-vault-border space-y-2 shrink-0 ${
             collapsed ? "p-2" : "p-3"
           }`}
         >
           {!collapsed ? (
-            <div className="rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800/60 p-2.5 flex items-center justify-between">
+            <div className="rounded-xl bg-[#F7F5EE] dark:bg-vault-surface border border-[#E2DDD0] dark:border-vault-border p-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-ledger-credit" />
                 </span>
                 <span className="text-[11px] font-mono text-slate-600 dark:text-slate-300">
-                  Core Engine :8080
+                  Node :8080
                 </span>
               </div>
-              <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded">
-                Active
+              <span className="text-[9px] font-mono uppercase font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/20 px-1.5 py-0.5 rounded">
+                Live
               </span>
             </div>
           ) : (
             <div
               className="flex justify-center py-1 cursor-pointer"
-              title="Core Engine :8080 · Active"
+              title="Core Engine :8080 · Live"
               onClick={toggleCollapsed}
             >
               <span className="relative flex h-2.5 w-2.5">
@@ -298,7 +367,7 @@ export default function Sidebar() {
             <button
               type="button"
               onClick={toggleCollapsed}
-              className="h-10 w-10 mx-auto flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors"
+              className="h-10 w-10 mx-auto flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-vault-elevated transition-colors"
               title="Expand sidebar (Ctrl+B)"
             >
               <PanelLeftOpen className="h-4 w-4" />
@@ -313,7 +382,7 @@ export default function Sidebar() {
     <>
       {/* Desktop Sticky Sidebar */}
       <aside
-        className={`hidden md:block sticky top-0 h-screen shrink-0 border-r border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#070b14]/95 backdrop-blur-md transition-[width] duration-200 ease-in-out z-30 ${
+        className={`hidden md:block sticky top-0 h-screen shrink-0 border-r border-[#E2DDD0] dark:border-vault-border bg-white/95 dark:bg-vault-obsidian/95 backdrop-blur-md transition-[width] duration-300 ease-in-out z-30 ${
           isCollapsed ? "w-16" : "w-60"
         }`}
       >
@@ -325,12 +394,12 @@ export default function Sidebar() {
         <div className="fixed inset-0 z-50 md:hidden">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity animate-fade-in"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-fade-in"
             onClick={closeMobile}
           />
 
           {/* Drawer Panel */}
-          <div className="fixed inset-y-0 left-0 w-72 max-w-[80vw] bg-white dark:bg-[#070b14] border-r border-slate-200 dark:border-slate-800 shadow-2xl z-50 animate-slide-right">
+          <div className="fixed inset-y-0 left-0 w-72 max-w-[80vw] bg-white dark:bg-vault-obsidian border-r border-slate-200 dark:border-vault-border shadow-2xl z-50 animate-slide-right">
             {sidebarContent(true)}
           </div>
         </div>
@@ -339,6 +408,8 @@ export default function Sidebar() {
       {/* ATM Simulator Modal */}
       {showAtmSimulator && (
         <ATMSimulatorModal
+          initialAtmId={atmInitialId}
+          showPortSelector={atmShowPortSelector}
           onClose={() => setShowAtmSimulator(false)}
           onSuccess={() => {
             refreshData();

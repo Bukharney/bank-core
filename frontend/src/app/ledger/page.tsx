@@ -1,43 +1,41 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { api } from "@/lib/api";
-import { JournalEntry, LedgerEntry } from "@/lib/types";
+import { LedgerEntry } from "@/lib/types";
 import { formatMoney, formatDate, formatAccountNumber } from "@/lib/currency";
 import { getAccountMeta } from "@/lib/accountMeta";
 import {
-  BookOpenText,
+  FileText,
   ArrowDownLeft,
   ArrowUpRight,
-  CheckCircle2,
-  X,
-  Layers,
-  Scale,
   RefreshCw,
   Search,
-  ExternalLink,
+  Calendar,
   ChevronLeft,
   ChevronRight,
-  Calendar,
+  ShieldAlert,
+  ArrowRight,
+  CheckCircle2,
 } from "lucide-react";
 
-export default function LedgerPage() {
-  const { accounts, activeAccount, setActiveAccount } = useAuth();
+export default function UserStatementPage() {
+  const { user, accounts, activeAccount, setActiveAccount } = useAuth();
   const { showToast } = useToast();
 
   const [statement, setStatement] = useState<LedgerEntry[]>([]);
-  const [filterType, setFilterType] = useState<"ALL" | "DEBIT" | "CREDIT">("ALL");
+  const [filterType, setFilterType] = useState<"ALL" | "INFLOW" | "OUTFLOW">("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
-  const [selectedJournal, setSelectedJournal] = useState<JournalEntry | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
   // Pagination State
   const [page, setPage] = useState<number>(0);
-  const pageSize = 25;
+  const pageSize = 20;
   const [hasMore, setHasMore] = useState<boolean>(true);
 
   const fetchStatement = async (pageNum = page) => {
@@ -50,7 +48,7 @@ export default function LedgerPage() {
         setHasMore(res.data.length === pageSize);
       }
     } catch (err: any) {
-      showToast("Failed to load ledger postings", "error");
+      showToast("Failed to load account transactions", "error");
     } finally {
       setLoading(false);
     }
@@ -67,26 +65,15 @@ export default function LedgerPage() {
     fetchStatement(newPage);
   };
 
-  const handleOpenJournal = async (journalId: string) => {
-    try {
-      const res = await api.ledger.getJournal(journalId);
-      if (res.data) {
-        setSelectedJournal(res.data);
-      }
-    } catch (err: any) {
-      showToast("Failed to fetch journal details", "error");
-    }
-  };
-
   const filteredStatement = statement.filter((entry) => {
-    if (filterType !== "ALL" && entry.entry_type !== filterType) {
-      return false;
-    }
+    if (filterType === "INFLOW" && entry.entry_type !== "CREDIT") return false;
+    if (filterType === "OUTFLOW" && entry.entry_type !== "DEBIT") return false;
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const matchUuid = entry.journal_entry_id.toLowerCase().includes(q);
+      const matchId = entry.id.toString().includes(q);
       const matchAmount = entry.amount.toString().includes(q);
-      if (!matchUuid && !matchAmount) return false;
+      if (!matchId && !matchAmount) return false;
     }
     if (startDate) {
       const entryDate = new Date(entry.created_at).toISOString().split("T")[0];
@@ -99,20 +86,43 @@ export default function LedgerPage() {
     return true;
   });
 
+  const totalInflow = statement
+    .filter((e) => e.entry_type === "CREDIT")
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  const totalOutflow = statement
+    .filter((e) => e.entry_type === "DEBIT")
+    .reduce((sum, e) => sum + e.amount, 0);
+
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
+    <div className="space-y-6 animate-fade-in pb-12 max-w-6xl mx-auto">
+      {/* Admin Notice Banner (If user wants double-entry logs) */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border border-slate-200 dark:border-vault-border bg-slate-50/80 dark:bg-vault-surface/40 p-4 text-xs font-mono">
+        <div className="flex items-center gap-2.5 text-slate-600 dark:text-slate-300">
+          <ShieldAlert className="h-4 w-4 text-bullion-500 shrink-0" />
+          <span>Need raw double-entry debit/credit audit logs?</span>
+        </div>
+        <Link
+          href="/admin/ledger"
+          className="flex items-center gap-1 font-bold text-bullion-700 dark:text-bullion-400 hover:underline"
+        >
+          <span>Open Operator Ledger Terminal</span>
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E2DDD0] dark:border-vault-border pb-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm">
-            <BookOpenText className="h-5 w-5" />
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 dark:bg-bullion-500 text-white dark:text-vault-obsidian shadow-sm">
+            <FileText className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Ledger Explorer
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+              Account Statement & History
             </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Immutable, append-only financial journal and correlated postings.
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-sans mt-0.5">
+              Review all incoming and outgoing payments, deposits, and cash withdrawals.
             </p>
           </div>
         </div>
@@ -128,7 +138,7 @@ export default function LedgerPage() {
                 showToast(`Switched to Account #${acc.id}`, "info");
               }
             }}
-            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-2 px-3 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:border-slate-900 dark:focus:border-white focus:outline-none shadow-sm"
+            className="rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-surface py-2 px-3 text-xs font-mono font-semibold text-slate-800 dark:text-slate-200 focus:border-bullion-500 focus:outline-none shadow-xs"
           >
             {accounts.map((acc) => {
               const meta = getAccountMeta(acc.id);
@@ -141,192 +151,216 @@ export default function LedgerPage() {
           </select>
 
           <button
+            type="button"
             onClick={() => {
               fetchStatement(page);
-              showToast("Ledger refreshed", "info");
+              showToast("Statement refreshed", "info");
             }}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition active:scale-95 shadow-sm"
-            title="Refresh Ledger"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 dark:border-vault-border bg-white dark:bg-vault-surface text-slate-600 dark:text-slate-300 hover:border-slate-400 dark:hover:border-vault-highlight transition active:scale-95 shadow-xs"
+            title="Refresh Transactions"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-slate-900 dark:text-white" : ""}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-bullion-500" : ""}`} />
           </button>
         </div>
       </div>
 
-      {/* Conservation Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/70 dark:bg-emerald-950/20 p-4 text-emerald-900 dark:text-emerald-300">
-        <div className="flex items-center gap-2.5">
-          <Scale className="h-4 w-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
-          <div className="text-xs">
-            <span className="font-bold">Double-Entry Balance Verified: </span>
-            <span className="text-emerald-800 dark:text-emerald-400">Σ Debits == Σ Credits with 0 balance leakage.</span>
+      {/* Friendly Summary Ribbon */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="rounded-2xl border border-[#E2DDD0] dark:border-vault-border bg-white dark:bg-vault-card p-5 space-y-1 shadow-xs">
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-medium">
+            <span>Money Received (Inflow)</span>
+            <ArrowDownLeft className="h-4 w-4 text-emerald-600 dark:text-ledger-credit" />
+          </div>
+          <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-ledger-credit tabular-nums">
+            +{formatMoney(totalInflow)}
+          </div>
+          <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+            Direct Deposits & Received Transfers
           </div>
         </div>
 
-        <span className="self-start sm:self-auto rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-mono">
-          ✓ Balanced
-        </span>
-      </div>
-
-      {/* Search & Filter Controls Bar */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-        {/* Filter Tabs */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
-          {(["ALL", "CREDIT", "DEBIT"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setFilterType(tab)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                filterType === tab
-                  ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-              }`}
-            >
-              {tab === "ALL" ? "All Postings" : tab === "CREDIT" ? "Credit (+ In)" : "Debit (- Out)"}
-            </button>
-          ))}
+        <div className="rounded-2xl border border-[#E2DDD0] dark:border-vault-border bg-white dark:bg-vault-card p-5 space-y-1 shadow-xs">
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-medium">
+            <span>Money Sent (Outflow)</span>
+            <ArrowUpRight className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+          </div>
+          <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white tabular-nums">
+            -{formatMoney(totalOutflow)}
+          </div>
+          <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+            Sent Transfers & Cash Withdrawals
+          </div>
         </div>
 
-        {/* Date Range Filters & Search */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Date Picker Range */}
-          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-1 px-2.5 shadow-sm text-xs text-slate-600 dark:text-slate-400">
-            <Calendar className="h-3.5 w-3.5 text-slate-400" />
+        <div className="rounded-2xl border border-[#E2DDD0] dark:border-vault-border bg-white dark:bg-vault-card p-5 space-y-1 shadow-xs">
+          <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-medium">
+            <span>Total Transactions</span>
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-ledger-credit" />
+          </div>
+          <div className="text-2xl font-bold font-mono text-slate-900 dark:text-white">
+            {statement.length} Records
+          </div>
+          <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+            Page {page + 1}
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Toolbar */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-2xl border border-[#E2DDD0] dark:border-vault-border bg-white dark:bg-vault-card shadow-xs">
+        {/* Search */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search by amount or reference..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 text-xs font-mono rounded-xl border border-slate-200 dark:border-vault-border bg-slate-50 dark:bg-vault-surface text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-bullion-500"
+          />
+        </div>
+
+        {/* Date Pickers */}
+        <div className="flex items-center gap-2 text-xs font-mono">
+          <div className="flex items-center gap-1 bg-slate-50 dark:bg-vault-surface border border-slate-200 dark:border-vault-border rounded-xl px-2 py-1">
+            <Calendar className="h-3 w-3 text-slate-400" />
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="bg-transparent text-xs text-slate-800 dark:text-slate-200 focus:outline-none"
-              title="Start Date"
+              className="bg-transparent text-slate-700 dark:text-slate-300 focus:outline-none text-[11px]"
             />
-            <span className="text-slate-400">→</span>
+          </div>
+          <span className="text-slate-400">to</span>
+          <div className="flex items-center gap-1 bg-slate-50 dark:bg-vault-surface border border-slate-200 dark:border-vault-border rounded-xl px-2 py-1">
+            <Calendar className="h-3 w-3 text-slate-400" />
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="bg-transparent text-xs text-slate-800 dark:text-slate-200 focus:outline-none"
-              title="End Date"
-            />
-            {(startDate || endDate) && (
-              <button
-                onClick={() => {
-                  setStartDate("");
-                  setEndDate("");
-                }}
-                className="text-slate-400 hover:text-slate-700 dark:hover:text-white ml-1"
-                title="Clear Date Filter"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-
-          {/* Search Input */}
-          <div className="relative flex-1 sm:w-60">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search UUID or Amount..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-1.5 pl-8 pr-3 text-xs font-mono text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:border-slate-900 dark:focus:border-white focus:outline-none shadow-sm"
+              className="bg-transparent text-slate-700 dark:text-slate-300 focus:outline-none text-[11px]"
             />
           </div>
         </div>
+
+        {/* Filter Tabs */}
+        <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-vault-surface text-xs font-medium">
+          {(["ALL", "INFLOW", "OUTFLOW"] as const).map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setFilterType(type)}
+              className={`px-3 py-1 rounded-lg font-semibold transition text-[11px] ${
+                filterType === type
+                  ? "bg-white dark:bg-vault-card text-slate-900 dark:text-white shadow-xs border border-slate-200/80 dark:border-vault-highlight"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              {type === "ALL" ? "All" : type === "INFLOW" ? "Received" : "Sent"}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Statement Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a]/90 shadow-sm">
-        {loading ? (
-          <div className="p-16 text-center text-xs text-slate-500 dark:text-slate-400 flex flex-col items-center gap-2">
-            <RefreshCw className="h-5 w-5 animate-spin text-slate-600 dark:text-slate-300" />
-            <span>Loading ledger postings...</span>
-          </div>
-        ) : filteredStatement.length === 0 ? (
-          <div className="p-16 text-center text-xs text-slate-500 dark:text-slate-400">
-            No ledger postings found for the selected filter.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
+      {/* Transactions List */}
+      <div className="rounded-2xl border border-[#E2DDD0] dark:border-vault-border bg-white dark:bg-vault-card shadow-xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 dark:bg-vault-surface/60 border-b border-[#E2DDD0] dark:border-vault-border text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">
+              <tr>
+                <th className="py-3.5 px-4 font-mono">Type</th>
+                <th className="py-3.5 px-4 font-mono">Reference</th>
+                <th className="py-3.5 px-4 font-mono">Date & Time</th>
+                <th className="py-3.5 px-4 font-mono text-right">Amount</th>
+                <th className="py-3.5 px-4 font-mono text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-vault-border">
+              {filteredStatement.length === 0 ? (
                 <tr>
-                  <th className="px-5 py-3">Timestamp</th>
-                  <th className="px-5 py-3">Leg</th>
-                  <th className="px-5 py-3">Amount</th>
-                  <th className="px-5 py-3">Balance After</th>
-                  <th className="px-5 py-3">Journal UUID</th>
+                  <td colSpan={5} className="py-12 text-center text-slate-500 dark:text-slate-400 font-mono">
+                    {loading ? "Loading transactions..." : "No transactions found."}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
-                {filteredStatement.map((entry) => {
+              ) : (
+                filteredStatement.map((entry) => {
                   const isCredit = entry.entry_type === "CREDIT";
                   return (
-                    <tr key={entry.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
-                      <td className="px-5 py-3.5 font-sans text-slate-600 dark:text-slate-400">
+                    <tr
+                      key={entry.id}
+                      className="hover:bg-slate-50/70 dark:hover:bg-vault-surface/40 transition-colors"
+                    >
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`flex h-7 w-7 items-center justify-center rounded-lg border text-xs font-bold shrink-0 ${
+                              isCredit
+                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-ledger-credit"
+                                : "border-slate-300 dark:border-vault-border bg-slate-100 dark:bg-vault-surface text-slate-700 dark:text-slate-300"
+                            }`}
+                          >
+                            {isCredit ? <ArrowDownLeft className="h-3.5 w-3.5" /> : <ArrowUpRight className="h-3.5 w-3.5" />}
+                          </div>
+                          <span className="font-bold text-slate-900 dark:text-white">
+                            {isCredit ? "Money Received" : "Money Sent"}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="py-3.5 px-4 font-mono text-slate-600 dark:text-slate-400">
+                        Ref #{entry.id}
+                      </td>
+
+                      <td className="py-3.5 px-4 font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
                         {formatDate(entry.created_at)}
                       </td>
-                      <td className="px-5 py-3.5">
+
+                      <td className="py-3.5 px-4 text-right font-mono font-bold tabular-nums">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${
+                          className={
                             isCredit
-                              ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40"
-                              : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700"
-                          }`}
+                              ? "text-emerald-600 dark:text-ledger-credit"
+                              : "text-slate-900 dark:text-white"
+                          }
                         >
-                          {isCredit ? <ArrowDownLeft className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
-                          {entry.entry_type}
+                          {isCredit ? "+" : "-"}{formatMoney(entry.amount)}
                         </span>
                       </td>
-                      <td
-                        className={`px-5 py-3.5 font-bold ${
-                          isCredit ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-white"
-                        }`}
-                      >
-                        {isCredit ? "+" : "-"}
-                        {formatMoney(entry.amount)}
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-800 dark:text-slate-200 font-semibold">
-                        {formatMoney(entry.balance_after)}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <button
-                          onClick={() => handleOpenJournal(entry.journal_entry_id)}
-                          className="flex items-center gap-1 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white underline text-xs transition"
-                          title="Inspect Correlated Journal"
-                        >
-                          <span>{entry.journal_entry_id.slice(0, 8)}...</span>
-                          <ExternalLink className="h-3 w-3" />
-                        </button>
+
+                      <td className="py-3.5 px-4 text-center">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-700 dark:text-ledger-credit bg-emerald-100 dark:bg-emerald-950/50 border border-emerald-500/20 px-2 py-0.5 rounded">
+                          <CheckCircle2 className="h-3 w-3" />
+                          <span>Completed</span>
+                        </span>
                       </td>
                     </tr>
                   );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {/* Pagination Bar */}
-        <div className="border-t border-slate-100 dark:border-slate-800 px-5 py-3 flex items-center justify-between text-xs bg-slate-50/50 dark:bg-slate-900/30">
-          <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">
-            Page {page + 1} ({filteredStatement.length} entries displayed)
+        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 dark:border-vault-border text-xs font-mono">
+          <span className="text-slate-500 dark:text-slate-400">
+            Page {page + 1}
           </span>
-
           <div className="flex items-center gap-1.5">
             <button
+              type="button"
               onClick={() => handlePageChange(page - 1)}
               disabled={page === 0 || loading}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-vault-border disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-vault-surface transition"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
-              <span>Previous</span>
+              <span>Prev</span>
             </button>
-
             <button
+              type="button"
               onClick={() => handlePageChange(page + 1)}
               disabled={!hasMore || loading}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-vault-border disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-vault-surface transition"
             >
               <span>Next</span>
               <ChevronRight className="h-3.5 w-3.5" />
@@ -334,87 +368,6 @@ export default function LedgerPage() {
           </div>
         </div>
       </div>
-
-      {/* Double-Entry Journal Modal */}
-      {selectedJournal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
-          <div className="relative w-full max-w-lg my-auto max-h-[92vh] overflow-y-auto rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0f172a] p-6 sm:p-8 shadow-2xl animate-slide-up space-y-5">
-            <button
-              onClick={() => setSelectedJournal(null)}
-              className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
-
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
-                <Scale className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">Journal Details</h3>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono break-all">{selectedJournal.id}</p>
-              </div>
-            </div>
-
-            {/* Header info */}
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 text-xs space-y-2">
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Transaction Type:</span>
-                <span className="font-bold text-slate-900 dark:text-white font-mono">{selectedJournal.transaction_type}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Description:</span>
-                <span className="font-medium text-slate-800 dark:text-slate-200">{selectedJournal.description}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Posted Timestamp:</span>
-                <span className="text-slate-700 dark:text-slate-300 font-mono">{formatDate(selectedJournal.posted_at)}</span>
-              </div>
-            </div>
-
-            {/* Postings Breakdown */}
-            <div>
-              <div className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5 uppercase tracking-wider">
-                <Layers className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                <span>Correlated Double-Entry Legs</span>
-              </div>
-
-              <div className="space-y-2">
-                {selectedJournal.postings?.map((post) => (
-                  <div
-                    key={post.id}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 text-xs shadow-sm"
-                  >
-                    <div>
-                      <div className="font-bold text-slate-900 dark:text-white font-mono">Account #{post.account_id}</div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                        Balance After: {formatMoney(post.balance_after)}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span
-                        className={`inline-block rounded-md px-2 py-0.5 text-xs font-bold font-mono border ${
-                          post.entry_type === "CREDIT"
-                            ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40"
-                            : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700"
-                        }`}
-                      >
-                        {post.entry_type} {formatMoney(post.amount)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Balance Guarantee */}
-            <div className="flex items-center justify-center gap-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 p-2.5 text-xs text-emerald-800 dark:text-emerald-300 font-medium">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <span>Conservation Verified: Total Debit == Total Credit</span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
