@@ -11,14 +11,12 @@
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
-    "clsx": "^2.1.1",
     "geist": "^1.7.2",
     "html-to-image": "^1.11.13",
     "lucide-react": "^0.475.0",
     "next": "^14.2.24",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "tailwind-merge": "^2.6.0"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",

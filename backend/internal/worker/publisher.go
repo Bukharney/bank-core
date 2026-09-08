@@ -29,15 +29,3 @@ func (p *RedisPublisher) Publish(ctx context.Context, event *models.OutboxEvent)
 	return nil
 }
 
-// LogPublisher is a fallback publisher that logs events
-type LogPublisher struct{}
-
-func NewLogPublisher() models.OutboxPublisher {
-	return &LogPublisher{}
-}
-
-func (p *LogPublisher) Publish(ctx context.Context, event *models.OutboxEvent) error {
-	logger.Logger.Infof("[Outbox LogPublisher] Event: %s, Aggregate: %s:%s, Payload: %s",
-		event.EventType, event.AggregateType, event.AggregateID, string(event.Payload))
-	return nil
-}

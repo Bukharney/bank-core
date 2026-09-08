@@ -24,7 +24,6 @@ var unprotectedRoutes = map[string]bool{
 	"/auth/login":    true,
 	"/auth/refresh":  true,
 	"/auth/logout":   true,
-	"/auth/test":     true,
 }
 
 var atmMachineRoutes = map[string]bool{
@@ -188,13 +187,3 @@ var DefaultMiddleware = ChainMiddleware(
 	AuthMiddleware,
 	TimeoutMiddleware,
 )
-
-// ApplyMiddleware applies the default middleware chain to a handler
-func ApplyMiddleware(handler http.Handler) http.Handler {
-	return DefaultMiddleware(handler)
-}
-
-// ApplyMiddlewareFunc applies the default middleware chain to a handler function
-func ApplyMiddlewareFunc(handlerFunc http.HandlerFunc) http.Handler {
-	return ApplyMiddleware(http.HandlerFunc(handlerFunc))
-}

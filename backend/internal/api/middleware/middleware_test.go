@@ -87,7 +87,7 @@ func TestDefaultMiddleware_PreflightOptions(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	handler := middleware.ApplyMiddleware(protectedHandler)
+	handler := middleware.DefaultMiddleware(protectedHandler)
 
 	req := httptest.NewRequest(http.MethodOptions, "/transaction/transfer", nil)
 	req.Header.Set("Origin", "http://localhost:3000")

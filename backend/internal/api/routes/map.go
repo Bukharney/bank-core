@@ -89,7 +89,6 @@ func MapHandler(config *config.Config, handler *http.ServeMux, pg *sqlx.DB, rdb 
 	authRouter.HandleFunc("GET /logout", authHandler.LogoutHandler)
 	authRouter.HandleFunc("GET /me", authHandler.MeHandler)
 	authRouter.HandleFunc("GET /refresh", authHandler.RefreshTokenHandler)
-	authRouter.HandleFunc("GET /test", authHandler.TestHandler)
 	handler.Handle("/auth/", http.StripPrefix("/auth", authRouter))
 
 	// Health Check Endpoint

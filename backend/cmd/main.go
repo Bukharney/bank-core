@@ -49,7 +49,7 @@ func main() {
 	// 2. Setup HTTP Server & Routes
 	mux := http.NewServeMux()
 	routes.MapHandler(cfg, mux, pg, rdb)
-	serv := middleware.ApplyMiddleware(mux)
+	serv := middleware.DefaultMiddleware(mux)
 
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf(":%s", cfg.Port),
